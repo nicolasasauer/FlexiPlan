@@ -19,7 +19,7 @@ if (hasKeystoreProperties) {
 }
 
 android {
-    namespace = "com.example.flexiplan"
+    namespace = "com.nicolassauer.flexiplan"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
