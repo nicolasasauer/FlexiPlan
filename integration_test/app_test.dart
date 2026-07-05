@@ -230,7 +230,7 @@ void main() {
         await _skipRestIfShown(tester);
 
         // Satz 2: überspringen inkl. Sicherheitsabfrage.
-        await _skipSetWithSafetyPrompt(tester);
+        await _skipSetWithSafetyPrompt(tester, setNumber: 2);
 
         // Satz 3: normal bestätigen.
         await _confirmSet(tester);
@@ -336,7 +336,7 @@ Future<void> _scrollToAndTap(WidgetTester tester, String text) async {
 }
 
 Future<void> _confirmSet(WidgetTester tester) async {
-  await tester.tap(find.text('Satz bestätigen'));
+  await tester.tap(find.text('Satz beendet'));
   await tester.pumpAndSettle();
 }
 
@@ -348,12 +348,13 @@ Future<void> _skipRestIfShown(WidgetTester tester) async {
   }
 }
 
-Future<void> _skipSetWithSafetyPrompt(WidgetTester tester) async {
+Future<void> _skipSetWithSafetyPrompt(WidgetTester tester,
+    {required int setNumber}) async {
   await tester.tap(find.text('Satz überspringen'));
   await tester.pumpAndSettle();
 
-  // Sicherheitsabfrage lt. Lastenheft 2.2.
-  expect(find.text('Satz überspringen?'), findsOneWidget);
+  // Sicherheitsabfrage lt. Lastenheft 2.2 – nennt den konkreten Satz.
+  expect(find.text('Satz $setNumber überspringen?'), findsOneWidget);
   await tester.tap(find.text('Überspringen'));
   await tester.pumpAndSettle();
 }
@@ -397,7 +398,7 @@ Future<void> _runExerciseTimerFullyAndLog(
     WidgetTester tester, int durationSeconds) async {
   await tester.tap(find.text('Timer starten'));
   await tester.pump();
-  await _waitForText(tester, 'Satz bestätigen',
+  await _waitForText(tester, 'Satz beendet',
       maxSeconds: durationSeconds + 15);
   await tester.pumpAndSettle();
   await _confirmSet(tester);

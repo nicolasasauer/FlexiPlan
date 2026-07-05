@@ -173,12 +173,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   Future<void> _confirmSkipSet() async {
+    final ex = _exercise;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Satz überspringen?'),
-        content: const Text('Satz wirklich überspringen? Er wird in der '
-            'Historie als "skipped" markiert.'),
+        title: Text('Satz $_setNumber überspringen?'),
+        content: Text('Satz $_setNumber von ${ex.sets} („${ex.name}") '
+            'wirklich überspringen? Er wird in der Historie als '
+            '„übersprungen" markiert.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -373,6 +375,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
+  /// Vorschau auf den nächsten Satz bzw. die nächste Übung während der
+  /// Satzpause. Der Rest-Timer läuft nie nach dem letzten Satz des
+  /// Workouts, daher ist der Zugriff auf die Folgeübung hier sicher.
+  String get _nextUpLabel {
+    final ex = _exercise;
+    if (_setNumber < ex.sets) {
+      return '${ex.name} · Satz ${_setNumber + 1}/${ex.sets}';
+    }
+    final next = widget.plan.exercises[_exerciseIndex + 1];
+    return next.name;
+  }
+
   Widget _buildRestView(ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -392,6 +406,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
         ),
         const Spacer(),
+        Text(
+          'Als Nächstes: $_nextUpLabel',
+          style: theme.textTheme.titleMedium
+              ?.copyWith(color: theme.colorScheme.primary),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
         OutlinedButton.icon(
           onPressed: _skipRest,
           icon: const Icon(Icons.skip_next, size: 28),
@@ -442,7 +463,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
         ElevatedButton.icon(
           onPressed: () => _logSet(completed: true),
           icon: const Icon(Icons.check, size: 32),
-          label: const Text('Satz bestätigen'),
+          label: const Text('Satz beendet'),
         ),
         const SizedBox(height: 12),
         _buildSkipButton(),
