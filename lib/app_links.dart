@@ -5,7 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Öffentliches GitHub-Repository (Quellcode, Workout-Vorlagen,
 /// JSON-Schema-Dokumentation).
-const String gitHubRepoUrl = 'https://github.com/nicolasasauer-privat/FlexiPlan';
+const String gitHubRepoUrl = 'https://github.com/nicolasasauer/FlexiPlan';
 
 /// Ordner mit den fertigen Workout-Vorlagen im Repository.
 const String workoutTemplatesUrl = '$gitHubRepoUrl/tree/main/workouts';

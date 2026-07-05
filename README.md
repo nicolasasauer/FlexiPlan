@@ -76,7 +76,7 @@ Ein Trainingsplan ist ein JSON-Objekt mit folgender Struktur:
 | `exercises` | Array | ✅ | Liste der Übungen (mindestens eine) |
 | `id` | Integer | ✅ | Laufende Nummer der Übung |
 | `name` | String | ✅ | Name der Übung |
-| `description` | String | – | Ausführungshinweise / Form-Cues |
+| `description` | String | – | Ausführungshinweise / Form-Cues. **Kurz (aber so ausführlich wie nötig), präzise und eindeutig** – sie wird während des Trainings auf dem Workout-Screen angezeigt und muss die korrekte Ausführung ohne Rückfragen klarmachen |
 | `type` | String | ✅ | `"reps"` (wiederholungsbasiert) oder `"time"` (zeitbasiert) |
 | `sets` | Integer ≥ 1 | ✅ | Anzahl der Sätze |
 | `reps` | Integer ≥ 1 | bei `"reps"` | Ziel-Wiederholungen pro Satz |
@@ -125,7 +125,10 @@ Regeln:
 - "type" ist entweder "reps" (dann sind "reps" Pflicht und "weight_kg" optional)
   oder "time" (dann ist "duration_seconds" Pflicht).
 - "rest_duration_seconds" ist bei jeder Übung Pflicht.
-- Schreibe die "description" als knappen Technik-Hinweis auf Deutsch.
+- Die "description" wird während des Trainings angezeigt: Schreibe sie kurz
+  (aber so ausführlich wie nötig), präzise und eindeutig auf Deutsch – die
+  wichtigsten Technik-Hinweise, sodass die Übung nicht verwechselt und
+  korrekt ausgeführt werden kann. Keine Füllwörter, keine Motivationsfloskeln.
 
 Meine Wünsche: [z. B. 3er-Split für Muskelaufbau, 45 Minuten pro Einheit,
 vorhandenes Equipment: Kurzhanteln bis 20 kg und eine Klimmzugstange,
@@ -147,6 +150,10 @@ flutter run
 ```
 
 Details zur Teststrategie und bekannten Build-Besonderheiten (file_picker/AGP): [TEST_REPORT_AND_OPTIMIZATION.md](TEST_REPORT_AND_OPTIMIZATION.md). Anforderungen: [Lastenheft_FlexiPlan_V1_2.pdf](Lastenheft_FlexiPlan_V1_2.pdf).
+
+## Datenschutz
+
+FlexiPlan hat keine Internet-Berechtigung und erhebt keinerlei Daten – Details in der [Datenschutzerklärung](PRIVACY.md).
 
 ## Lizenz
 
