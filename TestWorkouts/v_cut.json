@@ -1,0 +1,36 @@
+{
+"workout_title": "V-Cut Core Finisher",
+"version": "1.0",
+"description": "Gezieltes Zusatztraining für den unteren Bauch und die schrägen Bauchmuskeln zur Definition des V-Cuts.",
+"exercises": [
+{
+"id": 1,
+"name": "Hängendes Beinheben",
+"description": "An der Klimmzugstange hängen. Die Beine kontrolliert nach oben ziehen und das Becken am höchsten Punkt bewusst nach oben-vorne einrollen. Kein Schwung.",
+"type": "reps",
+"sets": 3,
+"reps": 12,
+"weight_kg": 0,
+"rest_duration_seconds": 60
+},
+{
+"id": 2,
+"name": "Russian Twists",
+"description": "Im Sitzen den Oberkörper leicht nach hinten lehnen, Beine anwinkeln und den Oberkörper kontrolliert mit Gewicht von links nach rechts drehen.",
+"type": "reps",
+"sets": 3,
+"reps": 20,
+"weight_kg": 0,
+"rest_duration_seconds": 60
+},
+{
+"id": 3,
+"name": "Spiderman-Plank",
+"description": "Im Unterarmstütz den Bauch fest anspannen und abwechselnd das linke und rechte Knie über die Seite zum gleichseitigen Ellenbogen ziehen.",
+"type": "time",
+"sets": 3,
+"duration_seconds": 60,
+"rest_duration_seconds": 60
+}
+]
+}

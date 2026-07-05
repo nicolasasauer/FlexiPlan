@@ -1,0 +1,26 @@
+{
+  "workout_title": "Ganzkörper Heimtraining",
+  "version": "1.0",
+  "description": "Effektives Training ohne schwere Geräte.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Liegestütze",
+      "description": "Achte auf eine gerade Plankenposition, Ellbogen nah am Körper führen.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 12,
+      "weight_kg": 0,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 2,
+      "name": "Plank (Unterarmstütz)",
+      "description": "Bauch und Gesäß maximal anspannen. Kein Hohlkreuz bilden.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 45,
+      "rest_duration_seconds": 45
+    }
+  ]
+}
