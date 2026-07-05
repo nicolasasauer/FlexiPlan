@@ -1,29 +1,30 @@
 // E2E-Tests für FlexiPlan (Lastenheft V1.2) auf dem Android-Emulator.
 //
-// TEST CASE 1: Datei-Import via nativem File Picker aus /sdcard/Download
+// TEST CASE 1: Datei-Import via File Picker aus /sdcard/Download
 //              (Datei zuvor per `adb push` auf den Emulator geschoben).
 // TEST CASE 2: Copy-Paste-Import + vollständiger Workout-Durchlauf über
 //              alle 3 Übungen aus TestWorkouts/v_cut.json bis zum
-//              Summary-Screen.
+//              Summary-Screen inkl. Zahlen-Verifikation.
 //
 // Ausführung (Emulator muss laufen, siehe TEST_REPORT_AND_OPTIMIZATION.md):
 //   adb push "TestWorkouts/v_cut.json" /sdcard/Download/Vcut.json
 //   flutter test integration_test/app_test.dart -d <device-id>
 //
-// Zwei bekannte Werkzeug-Grenzen (kein App-Bug, siehe TEST_REPORT):
-// 1) Der native Android-SAF-Dateiauswahldialog läuft in einer eigenen
-//    System-Activity außerhalb des Flutter-Widget-Baums und kann daher
-//    nicht per WidgetTester bedient werden. TEST CASE 1 ersetzt deshalb
-//    FilePicker.platform durch _PushedFileFilePicker, die die zuvor per
-//    ADB gepushte Datei einliest und so den kompletten App-seitigen
-//    Code-Pfad (_pickFile -> utf8.decode -> PlanParser.parse -> Button-
-//    Freischaltung) real auf dem Gerät prüft.
-// 2) Die Belastungs-Timer in workout_screen.dart nutzen einen direkten
-//    `Timer.periodic` ohne injizierbare Uhr. In einem Live-/On-Device-Test
-//    (IntegrationTestWidgetsFlutterBinding) läuft die Zeit real, nicht
-//    virtuell wie in reinen flutter-test-Widgettests mit FakeAsync. Der
-//    60-Sekunden-Timer von Übung 3 wird daher real (tick-genau) durch-
-//    gepumpt statt "virtuell" verkürzt.
+// Werkzeug-Grenze (kein App-Bug, siehe TEST_REPORT): Der native
+// Android-SAF-Dateiauswahldialog läuft in einer eigenen System-Activity
+// außerhalb des Flutter-Widget-Baums und kann nicht per WidgetTester
+// bedient werden. TEST CASE 1 ersetzt deshalb FilePicker.platform
+// durch _PushedFileFilePicker, die die zuvor per ADB gepushte Datei
+// einliest und so den kompletten App-seitigen Code-Pfad (_pickFile ->
+// utf8.decode -> PlanParser.parse -> Button-Freischaltung) real auf dem
+// Gerät prüft.
+//
+// Timer-Strategie in TEST CASE 2 (Übung 3, zeitbasiert): Die Timer laufen
+// im On-Device-Test in Echtzeit (IntegrationTestWidgetsFlutterBinding,
+// kein FakeAsync). Satz 1 lässt den 60s-Belastungs-Timer daher einmal
+// komplett real ablaufen (deckt den automatischen Übergang in den
+// Log-Screen ab); Sätze 2 und 3 kürzen den Timer über den Button
+// "Satz vorzeitig beenden" ab.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -79,16 +80,15 @@ const String _vCutJsonContent = '''
 }
 ''';
 
-/// Pfad, unter dem die Testdatei laut Aufgabenstellung vor dem Testlauf
-/// abgelegt wird: `adb push "TestWorkouts/v_cut.json" /sdcard/Download/Vcut.json`.
+/// Pfad, unter dem die Testdatei vor dem Testlauf abgelegt wird:
+/// `adb push "TestWorkouts/v_cut.json" /sdcard/Download/Vcut.json`.
 const String _adbPushedFilePath = '/storage/emulated/0/Download/Vcut.json';
 
-/// Test-Bridge für TEST CASE 1. Ersetzt FilePicker.platform, weil der
-/// native SAF-Dialog nicht über WidgetTester ansteuerbar ist (siehe
-/// Datei-Kommentar oben). Liest bevorzugt die real gepushte Datei; falls
-/// Android Scoped Storage den Direktzugriff aus dem App-Prozess heraus
-/// verweigert, wird auf eine identische eingebettete Kopie ausgewichen,
-/// damit die App-Validierungslogik dennoch geprüft werden kann.
+/// Test-Bridge für TEST CASE 1 (siehe Datei-Kommentar). Liest bevorzugt
+/// die real gepushte Datei; falls Android Scoped Storage den Direktzugriff
+/// aus dem App-Prozess heraus verweigert, wird auf eine identische
+/// eingebettete Kopie ausgewichen, damit die App-Validierungslogik
+/// dennoch geprüft werden kann.
 class _PushedFileFilePicker extends FilePicker {
   @override
   Future<FilePickerResult?> pickFiles({
@@ -97,8 +97,9 @@ class _PushedFileFilePicker extends FilePicker {
     FileType type = FileType.any,
     List<String>? allowedExtensions,
     Function(FilePickerStatus)? onFileLoading,
-    bool allowCompression = true,
-    int compressionQuality = 30,
+    // ignore: deprecated_member_use
+    bool allowCompression = false,
+    int compressionQuality = 0,
     bool allowMultiple = false,
     bool withData = false,
     bool withReadStream = false,
@@ -127,10 +128,13 @@ class _PushedFileFilePicker extends FilePicker {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  setUp(() async {
     // Jeder Testdurchlauf beginnt mit leerem lokalen Speicher (entspricht
-    // "Starte die App neu" aus der Aufgabenstellung).
-    SharedPreferences.setMockInitialValues(<String, Object>{});
+    // "Starte die App neu"). Bewusst über die ECHTE SharedPreferences-
+    // Implementierung des Geräts (clear statt Mock), damit auch die
+    // Persistenzschicht real mitgetestet wird.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
   });
 
   group('TEST CASE 1 – Datei-Import via File Picker', () {
@@ -148,6 +152,9 @@ void main() {
       await tester.tap(find.text('JSON-Datei auswählen'));
       await tester.pumpAndSettle();
 
+      // Die Bestätigungskarte liegt am Listenende und wird von der
+      // ListView erst beim Scrollen gebaut.
+      await _scrollUntilVisible(tester, 'Validierung erfolgreich');
       expect(find.textContaining('Validierung erfolgreich'), findsOneWidget,
           reason:
               'Vcut.json aus dem Download-Ordner sollte erfolgreich validiert werden.');
@@ -160,8 +167,7 @@ void main() {
               '"Plan aktivieren" (Pendant zum "Start Workout"-Button) muss '
               'nach erfolgreicher Validierung freigeschaltet sein.');
 
-      await tester.tap(find.text('Plan aktivieren'));
-      await tester.pumpAndSettle();
+      await _scrollToAndTap(tester, 'Plan aktivieren');
 
       expect(find.text('FlexiPlan'), findsOneWidget);
       expect(find.text('Workout starten'), findsOneWidget);
@@ -186,13 +192,21 @@ void main() {
         await tester.tap(find.text('Prüfen & übernehmen'));
         await tester.pumpAndSettle();
 
+        // Tastatur schließen: Die nach enterText geöffnete IME verkleinert
+        // den Viewport (adjustResize) und verschiebt das Layout asynchron
+        // zur Flutter-Frame-Pipeline; ohne Unfocus wären die folgenden
+        // Finder/Taps unzuverlässig.
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 600));
+
+        // Bestätigungskarte wird von der ListView erst beim Scrollen gebaut.
+        await _scrollUntilVisible(tester, 'Validierung erfolgreich');
         expect(find.textContaining('Validierung erfolgreich'), findsOneWidget);
 
-        await tester.tap(find.text('Plan aktivieren'));
-        await tester.pumpAndSettle();
+        await _scrollToAndTap(tester, 'Plan aktivieren');
 
-        await tester.tap(find.text('Workout starten'));
-        await tester.pumpAndSettle();
+        await _scrollToAndTap(tester, 'Workout starten');
 
         // --- Übung 1: Hängendes Beinheben (reps, 3 Sätze à 12 Wdh.) ---
         expect(find.text('Hängendes Beinheben'), findsOneWidget);
@@ -225,11 +239,13 @@ void main() {
         // --- Übung 3: Spiderman-Plank (time, 3 Sätze à 60 Sek.) ---
         expect(find.text('Spiderman-Plank'), findsOneWidget);
 
-        await _runExerciseTimerAndLog(tester, 60);
+        // Satz 1: Timer komplett real ablaufen lassen (Auto-Übergang).
+        await _runExerciseTimerFullyAndLog(tester, 60);
         await _skipRestIfShown(tester);
-        await _runExerciseTimerAndLog(tester, 60);
+        // Sätze 2 & 3: Timer über den Button vorzeitig abkürzen.
+        await _cutExerciseTimerShortAndLog(tester);
         await _skipRestIfShown(tester);
-        await _runExerciseTimerAndLog(tester, 60); // letzter Satz -> Summary
+        await _cutExerciseTimerShortAndLog(tester); // letzter Satz -> Summary
 
         // --- Summary-Screen verifizieren ---
         expect(find.text('Zusammenfassung'), findsOneWidget);
@@ -254,12 +270,16 @@ void main() {
         expect(russianTwists.setsLogged[1].status, SetStatus.skipped,
             reason: 'Satz 2 von Russian Twists wurde übersprungen.');
 
+        final plank = session.completedExercises
+            .firstWhere((e) => e.exerciseName == 'Spiderman-Plank');
+        expect(plank.setsLogged[0].durationActualSeconds, 60,
+            reason: 'Satz 1 der Plank lief komplett durch (60 Sek.).');
+
         // Sichtprüfung der auf dem Summary-Screen angezeigten Werte.
         expect(find.text('30.0 kg'), findsOneWidget);
         expect(find.text('76'), findsOneWidget);
 
-        await tester.tap(find.text('Fertig'));
-        await tester.pumpAndSettle();
+        await _scrollToAndTap(tester, 'Fertig');
 
         expect(find.textContaining('Verlauf (1 Sessions)'), findsOneWidget,
             reason: 'Die absolvierte Session muss in der Historie '
@@ -285,6 +305,34 @@ bool _isElevatedButtonEnabled(WidgetTester tester, String text) {
   );
   final button = tester.widget<ElevatedButton>(buttonFinder);
   return button.onPressed != null;
+}
+
+/// Scrollt die äußere ListView schrittweise nach unten, bis ein Widget mit
+/// [text] gebaut und sichtbar ist. Nötig, weil ListView lazy baut: Inhalte
+/// unterhalb des Folds existieren vor dem Scrollen nicht im Widget-Baum.
+Future<void> _scrollUntilVisible(WidgetTester tester, String text) async {
+  await tester.scrollUntilVisible(
+    find.textContaining(text),
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+}
+
+/// Scrollt das Ziel bei Bedarf in den sichtbaren Bereich und tappt es.
+/// Nötig für Buttons am Ende scrollbarer ListViews (Import-Vorschau,
+/// Summary), die auf dem Emulator-Display unterhalb des Folds liegen und
+/// wegen des Lazy-Buildings vor dem Scrollen noch gar nicht im Baum sind.
+Future<void> _scrollToAndTap(WidgetTester tester, String text) async {
+  final finder = find.text(text);
+  await tester.scrollUntilVisible(
+    finder,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+  await tester.tap(finder);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _confirmSet(WidgetTester tester) async {
@@ -329,17 +377,40 @@ Future<void> _incrementWeight(WidgetTester tester, {int times = 1}) async {
   }
 }
 
-/// Startet den Belastungs-Timer einer zeitbasierten Übung und pumpt den
-/// Testerin Sekundentakt real durch (siehe Datei-Kommentar: Timer.periodic
-/// lässt sich in einem Live-/On-Device-Test nicht virtuell vorspulen).
-/// Bestätigt anschließend den Satz im Log-Screen.
-Future<void> _runExerciseTimerAndLog(
+/// Pumpt in Echtzeit (1s-Schritte), bis [text] sichtbar ist oder
+/// [maxSeconds] erreicht sind. Nötig, weil die Belastungs-Timer der App
+/// real ticken und der genaue Übergangszeitpunkt leicht schwanken kann.
+Future<void> _waitForText(WidgetTester tester, String text,
+    {required int maxSeconds}) async {
+  for (var i = 0; i < maxSeconds; i++) {
+    if (find.text(text).evaluate().isNotEmpty) {
+      return;
+    }
+    await tester.pump(const Duration(seconds: 1));
+  }
+  fail('Timeout: "$text" nicht innerhalb von $maxSeconds s erschienen.');
+}
+
+/// Übung-3-Satz mit vollem Timer-Durchlauf: Timer starten, real bis zum
+/// automatischen Übergang in den Log-Screen warten, Satz bestätigen.
+Future<void> _runExerciseTimerFullyAndLog(
     WidgetTester tester, int durationSeconds) async {
   await tester.tap(find.text('Timer starten'));
   await tester.pump();
-  for (var i = 0; i < durationSeconds; i++) {
-    await tester.pump(const Duration(seconds: 1));
-  }
+  await _waitForText(tester, 'Satz bestätigen',
+      maxSeconds: durationSeconds + 15);
+  await tester.pumpAndSettle();
+  await _confirmSet(tester);
+}
+
+/// Übung-3-Satz mit abgekürztem Timer: Timer starten, nach ~2 Sekunden
+/// über "Satz vorzeitig beenden" in den Log-Screen wechseln und den Satz
+/// mit der verstrichenen Zeit loggen.
+Future<void> _cutExerciseTimerShortAndLog(WidgetTester tester) async {
+  await tester.tap(find.text('Timer starten'));
+  await tester.pump();
+  await tester.pump(const Duration(seconds: 2));
+  await tester.tap(find.text('Satz vorzeitig beenden'));
   await tester.pumpAndSettle();
   await _confirmSet(tester);
 }

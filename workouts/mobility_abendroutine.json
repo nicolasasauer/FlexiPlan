@@ -1,0 +1,61 @@
+{
+  "workout_title": "Mobility & Stretching Abendroutine",
+  "version": "1.0",
+  "description": "Ruhige Beweglichkeits-Routine zum Runterkommen oder als Cooldown nach dem Training. In jeder Position tief und gleichmäßig atmen.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Katze-Kuh",
+      "description": "Im Vierfüßlerstand die Wirbelsäule im Atemrhythmus abwechselnd rund machen (Katze) und ins Hohlkreuz senken (Kuh).",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 45,
+      "rest_duration_seconds": 10
+    },
+    {
+      "id": 2,
+      "name": "World's Greatest Stretch (rechts)",
+      "description": "Tiefer Ausfallschritt rechts, linke Hand am Boden, rechten Arm zur Decke aufdrehen und dem Arm mit dem Blick folgen.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 10
+    },
+    {
+      "id": 3,
+      "name": "World's Greatest Stretch (links)",
+      "description": "Gleiche Übung zur anderen Seite: tiefer Ausfallschritt links, rechte Hand am Boden, linken Arm zur Decke aufdrehen.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 10
+    },
+    {
+      "id": 4,
+      "name": "Taubenstellung (beide Seiten)",
+      "description": "Ein Bein angewinkelt vor dem Körper ablegen, das andere lang nach hinten. Nach der Hälfte der Zeit die Seite wechseln. Dehnt Hüfte und Gesäß.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 60,
+      "rest_duration_seconds": 15
+    },
+    {
+      "id": 5,
+      "name": "Tiefe Hocke",
+      "description": "So tief wie möglich in die Hocke, Fersen am Boden, Ellbogen drücken die Knie sanft nach außen. Festhalten erlaubt.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 30,
+      "rest_duration_seconds": 15
+    },
+    {
+      "id": 6,
+      "name": "Kindhaltung",
+      "description": "Knie breit, Gesäß auf die Fersen, Arme lang nach vorn ausstrecken und Stirn ablegen. Mit jeder Ausatmung tiefer sinken lassen.",
+      "type": "time",
+      "sets": 1,
+      "duration_seconds": 60,
+      "rest_duration_seconds": 0
+    }
+  ]
+}

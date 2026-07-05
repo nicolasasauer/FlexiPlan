@@ -1,0 +1,56 @@
+{
+  "workout_title": "Bein-Tag mit Kurzhanteln",
+  "version": "1.0",
+  "description": "Beine und Gesäß mit einem Paar Kurzhanteln. Gewichte sind Startempfehlungen (Gesamtlast) – im Workout live anpassen.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Goblet Squat",
+      "description": "Eine Hantel senkrecht vor der Brust halten. Tief in die Hocke, Ellbogen innen an den Knien vorbei, Fersen bleiben am Boden.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 12,
+      "weight_kg": 15,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 2,
+      "name": "Rumänisches Kreuzheben (RDL)",
+      "description": "Hanteln vor den Oberschenkeln, Knie leicht gebeugt. Hüfte nach hinten schieben, Rücken gerade, Dehnung im hinteren Oberschenkel spüren, dann Hüfte strecken.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 10,
+      "weight_kg": 25,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 3,
+      "name": "Bulgarian Split Squat",
+      "description": "Hinterer Fuß erhöht auf Bank oder Stuhl. Kontrolliert absenken, vorderes Knie stabil. Pro Satz beide Seiten – anspruchsvoll, ggf. ohne Gewicht starten.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 10,
+      "weight_kg": 10,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 4,
+      "name": "Wadenheben (stehend)",
+      "description": "Auf einer Stufe oder Kante, Fersen frei. Ganz hoch auf die Zehenspitzen, oben 1 Sekunde halten, unten die Dehnung mitnehmen.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 15,
+      "weight_kg": 10,
+      "rest_duration_seconds": 45
+    },
+    {
+      "id": 5,
+      "name": "Wall Sit",
+      "description": "Rücken flach an die Wand, Knie im 90-Grad-Winkel. Hände nicht auf den Oberschenkeln abstützen. Zum Abschluss durchbeißen!",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 45,
+      "rest_duration_seconds": 60
+    }
+  ]
+}

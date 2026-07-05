@@ -1,7 +1,7 @@
 name: flexiplan
 description: Minimalistischer, lokaler Workout-Begleiter und digitales Trainingstagebuch.
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.2.0+2
 
 # Benötigt Flutter >= 3.29 (CardThemeData/DialogThemeData, PopScope).
 environment:
@@ -11,7 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: ^2.3.0
-  file_picker: ^8.1.2
+  url_launcher: ^6.3.0
+  # 10.x statt 11.x: file_picker 11 setzt unter AGP 9 Built-in Kotlin
+  # voraus, das Flutter 3.44 noch nicht unterstützt (Build bricht mit
+  # "Symbol nicht gefunden: FilePickerPlugin"). 10.x wendet das klassische
+  # Kotlin-Gradle-Plugin an und baut mit dem Flutter-3.44-Template.
+  file_picker: ^10.0.0
 
 dev_dependencies:
   flutter_test:

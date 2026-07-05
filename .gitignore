@@ -4,7 +4,6 @@
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
-pubspec.lock
 
 # IDE
 .idea/
@@ -13,6 +12,7 @@ pubspec.lock
 
 # Plattform-Build-Artefakte
 android/.gradle/
+android/.kotlin/
 android/local.properties
 ios/Pods/
 windows/flutter/ephemeral/

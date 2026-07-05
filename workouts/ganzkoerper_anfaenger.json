@@ -1,0 +1,56 @@
+{
+  "workout_title": "Ganzkörper für Einsteiger",
+  "version": "1.0",
+  "description": "Komplettes Ganzkörpertraining ohne Geräte. Ideal für den Einstieg oder als Erhaltungstraining, 2-3x pro Woche mit mindestens einem Tag Pause.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Kniebeugen",
+      "description": "Füße schulterbreit, Gewicht auf der ganzen Fußsohle. Hüfte nach hinten-unten schieben, Knie folgen der Fußspitze, Oberkörper stolz aufgerichtet.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 15,
+      "weight_kg": 0,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 2,
+      "name": "Liegestütze",
+      "description": "Körper bildet eine gerade Linie, Ellbogen etwa 45 Grad zum Körper. Zu schwer? Auf den Knien oder erhöht an einer Bank ausführen.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 10,
+      "weight_kg": 0,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 3,
+      "name": "Ausfallschritte (wechselseitig)",
+      "description": "Großer Schritt nach vorn, hinteres Knie senkt sich Richtung Boden. Vorderes Knie bleibt über dem Fuß. Pro Wiederholung ein Bein, im Wechsel.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 12,
+      "weight_kg": 0,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 4,
+      "name": "Superman",
+      "description": "In Bauchlage Arme und Beine gestreckt anheben, Blick zum Boden, 1 Sekunde oben halten. Kräftigt den unteren Rücken als Ausgleich zum Sitzen.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 12,
+      "weight_kg": 0,
+      "rest_duration_seconds": 45
+    },
+    {
+      "id": 5,
+      "name": "Plank (Unterarmstütz)",
+      "description": "Ellbogen unter den Schultern, Bauch und Gesäß fest anspannen, kein Hohlkreuz. Ruhig weiteratmen.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 30,
+      "rest_duration_seconds": 45
+    }
+  ]
+}

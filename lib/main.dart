@@ -39,8 +39,18 @@ class FlexiPlanApp extends StatelessWidget {
       scaffoldBackgroundColor: background,
     );
 
+    // ThemeData.textTheme trägt zu diesem Zeitpunkt noch keine konkreten
+    // fontSizes (die M3-Geometrie wird erst beim Rendern über die
+    // Lokalisierung gemerged); apply(fontSizeFactor) würde auf den
+    // null-Größen asserten. Daher die Geometrie explizit laden, mit den
+    // Dark-Mode-Farben mergen und dann skalieren.
+    final typography = Typography.material2021(platform: TargetPlatform.android);
+    final scaledTextTheme = typography.englishLike
+        .merge(typography.white)
+        .apply(fontSizeFactor: 1.15);
+
     return base.copyWith(
-      textTheme: base.textTheme.apply(fontSizeFactor: 1.15),
+      textTheme: scaledTextTheme,
       appBarTheme: const AppBarTheme(
         backgroundColor: background,
         centerTitle: true,

@@ -1,0 +1,56 @@
+{
+  "workout_title": "Pull-Tag mit Klimmzugstange & Kurzhantel",
+  "version": "1.0",
+  "description": "Rücken und Bizeps. Benötigt eine Klimmzugstange und eine Kurzhantel. Klimmzüge zu schwer? Negativ-Wiederholungen (langsam ablassen) oder Band nutzen.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Klimmzüge",
+      "description": "Schulterbreiter Obergriff. Aus der vollen Hängeposition ziehen, bis das Kinn über der Stange ist. Kontrolliert ablassen, kein Schwung.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 6,
+      "weight_kg": 0,
+      "rest_duration_seconds": 120
+    },
+    {
+      "id": 2,
+      "name": "Einarmiges Kurzhantel-Rudern",
+      "description": "Eine Hand auf Bank oder Stuhl abgestützt, Rücken gerade. Hantel zur Hüfte ziehen, Schulterblatt bewusst nach hinten-unten. Pro Satz beide Seiten.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 10,
+      "weight_kg": 15,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 3,
+      "name": "Bizeps-Curls",
+      "description": "Ellbogen bleiben am Körper fixiert. Ohne Schwung hochcurlen, oben kurz anspannen, langsam ablassen.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 12,
+      "weight_kg": 10,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 4,
+      "name": "Reverse Flys (vorgebeugt)",
+      "description": "Oberkörper vorgebeugt, Rücken gerade. Arme leicht gebeugt seitlich anheben, Schulterblätter zusammenziehen. Wichtig für die hintere Schulter.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 15,
+      "weight_kg": 5,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 5,
+      "name": "Dead Hang (Aushängen)",
+      "description": "Einfach an der Stange hängen, Schultern aktiv nach unten ziehen. Stärkt die Griffkraft und entlastet die Wirbelsäule.",
+      "type": "time",
+      "sets": 2,
+      "duration_seconds": 30,
+      "rest_duration_seconds": 60
+    }
+  ]
+}

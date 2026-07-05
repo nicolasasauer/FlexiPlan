@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../app_links.dart';
 import '../models/workout_plan.dart';
 import '../services/storage_service.dart';
 import 'history_screen.dart';
@@ -75,7 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('FlexiPlan')),
+      appBar: AppBar(
+        title: const Text('FlexiPlan'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.code, size: 28),
+            tooltip: 'Open Source auf GitHub',
+            onPressed: () => openExternalUrl(gitHubRepoUrl),
+          ),
+        ],
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(

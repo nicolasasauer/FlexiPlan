@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../app_links.dart';
 import '../models/workout_plan.dart';
 import '../services/plan_parser.dart';
 import '../services/storage_service.dart';
@@ -142,6 +143,37 @@ class _ImportScreenState extends State<ImportScreen> {
             const SizedBox(height: 20),
             if (_errors.isNotEmpty) _buildErrorCard(theme),
             if (_parsedPlan != null) _buildPreviewCard(theme),
+            _buildTemplatesHintCard(theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Verweis auf das offene GitHub-Repository mit fertigen
+  /// Workout-Vorlagen und der JSON-Schema-Dokumentation.
+  Widget _buildTemplatesHintCard(ThemeData theme) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Noch keinen Plan?', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(
+              'FlexiPlan ist Open Source. Im GitHub-Repository findest du '
+              'fertige Workout-Vorlagen zum Kopieren sowie eine Anleitung, '
+              'wie du dir eigene Pläne erstellst – selbst, von deinem Coach '
+              'oder von einer KI generiert.',
+              style: theme.textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => openExternalUrl(workoutTemplatesUrl),
+              icon: const Icon(Icons.open_in_new, size: 28),
+              label: const Text('Vorlagen auf GitHub'),
+            ),
           ],
         ),
       ),

@@ -94,6 +94,17 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     });
   }
 
+  /// Bricht den Belastungs-Timer vorzeitig ab und übernimmt die bereits
+  /// verstrichene Zeit als Ist-Wert in den Log-Screen (dort per ±5s
+  /// weiter anpassbar).
+  void _stopExerciseTimerEarly() {
+    _timer?.cancel();
+    setState(() {
+      _durationValue = _exercise.durationSeconds - _secondsRemaining;
+      _phase = _Phase.logging;
+    });
+  }
+
   void _startRestTimer(int seconds) {
     _timer?.cancel();
     setState(() {
@@ -353,6 +364,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           ),
         ),
         const Spacer(),
+        OutlinedButton.icon(
+          onPressed: _stopExerciseTimerEarly,
+          icon: const Icon(Icons.stop, size: 28),
+          label: const Text('Satz vorzeitig beenden'),
+        ),
       ],
     );
   }

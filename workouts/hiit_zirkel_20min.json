@@ -1,0 +1,52 @@
+{
+  "workout_title": "HIIT-Zirkel (ca. 20 Minuten)",
+  "version": "1.0",
+  "description": "Hochintensiver Intervall-Zirkel ohne Geräte für Ausdauer und Fettverbrennung. Kurze Pausen bewusst einhalten – das Tempo macht die Intensität.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Jumping Jacks (Hampelmänner)",
+      "description": "Lockeres Tempo zum Reinkommen, Arme ganz über den Kopf. Auf den Fußballen federn.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 20
+    },
+    {
+      "id": 2,
+      "name": "Mountain Climbers",
+      "description": "Aus der Liegestützposition Knie zügig abwechselnd zur Brust ziehen. Hüfte bleibt tief, Schultern über den Handgelenken.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 20
+    },
+    {
+      "id": 3,
+      "name": "Burpees",
+      "description": "Hocke, Sprung in die Liegestützposition, optional Liegestütz, zurück in die Hocke, Strecksprung. Eigenes Tempo – Sauberkeit vor Geschwindigkeit.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 30,
+      "rest_duration_seconds": 30
+    },
+    {
+      "id": 4,
+      "name": "High Knees (Kniehebelauf)",
+      "description": "Auf der Stelle laufen, Knie bis auf Hüfthöhe ziehen, Arme aktiv mitnehmen. Rumpf aufrecht.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 20
+    },
+    {
+      "id": 5,
+      "name": "Plank Shoulder Taps",
+      "description": "In der hohen Plank abwechselnd mit einer Hand die gegenüberliegende Schulter antippen. Hüfte bleibt ruhig – nicht hin- und herkippen.",
+      "type": "time",
+      "sets": 3,
+      "duration_seconds": 40,
+      "rest_duration_seconds": 60
+    }
+  ]
+}

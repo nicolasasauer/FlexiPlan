@@ -1,0 +1,57 @@
+{
+  "workout_title": "Push-Tag mit Kurzhanteln",
+  "version": "1.0",
+  "description": "Brust, Schultern und Trizeps mit einem Paar Kurzhanteln. Gewichte sind Startempfehlungen pro Hantel – im Workout einfach live anpassen.",
+  "exercises": [
+    {
+      "id": 1,
+      "name": "Kurzhantel-Bankdrücken (Floor Press)",
+      "description": "Auf dem Rücken liegend (Bank oder Boden), Hanteln über der Brust. Kontrolliert absenken bis die Oberarme den Boden berühren, dann kraftvoll hochdrücken.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 10,
+      "weight_kg": 12.5,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 2,
+      "name": "Schulterdrücken",
+      "description": "Stehend oder sitzend, Hanteln auf Schulterhöhe. Über den Kopf drücken ohne ins Hohlkreuz auszuweichen, Rumpf fest.",
+      "type": "reps",
+      "sets": 4,
+      "reps": 10,
+      "weight_kg": 10,
+      "rest_duration_seconds": 90
+    },
+    {
+      "id": 3,
+      "name": "Seitheben",
+      "description": "Leicht gebeugte Ellbogen, Hanteln seitlich bis auf Schulterhöhe führen. Kein Schwung aus dem Oberkörper – lieber leichter und sauber.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 15,
+      "weight_kg": 5,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 4,
+      "name": "Trizepsdrücken über Kopf",
+      "description": "Eine Hantel mit beiden Händen hinter dem Kopf. Ellbogen zeigen nach vorn und bleiben eng, nur die Unterarme bewegen sich.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 12,
+      "weight_kg": 10,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 5,
+      "name": "Liegestütze (Ausbrenner)",
+      "description": "Zum Abschluss so viele saubere Wiederholungen wie möglich – die Zahl ist nur ein Richtwert, logge dein tatsächliches Ergebnis.",
+      "type": "reps",
+      "sets": 2,
+      "reps": 12,
+      "weight_kg": 0,
+      "rest_duration_seconds": 60
+    }
+  ]
+}
