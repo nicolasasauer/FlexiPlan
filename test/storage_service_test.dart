@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flexiplan/models/workout_session.dart';
 import 'package:flexiplan/services/plan_parser.dart';
 import 'package:flexiplan/services/storage_service.dart';
@@ -85,14 +87,73 @@ void main() {
     expect(migrated['workout_title'], legacy['workout_title']);
   });
 
-  test('Aktiver Plan: speichern und laden', () async {
-    final storage = StorageService();
-    final plan = PlanParser.parse(validPlanJson);
-    await storage.saveActivePlan(plan);
+  group('Plan-Bibliothek', () {
+    test('addPlan speichert und wählt aus, loadSelectedPlan liefert ihn',
+        () async {
+      final storage = StorageService();
+      final plan = PlanParser.parse(validPlanJson);
+      final stored = await storage.addPlan(plan);
 
-    final loaded = await storage.loadActivePlan();
-    expect(loaded, isNotNull);
-    expect(loaded!.workoutTitle, plan.workoutTitle);
-    expect(loaded.exercises.length, 2);
+      expect(stored.id, isNotEmpty);
+      final plans = await storage.loadPlans();
+      expect(plans.length, 1);
+
+      final selected = await storage.loadSelectedPlan();
+      expect(selected!.id, stored.id);
+      expect(selected.plan.workoutTitle, plan.workoutTitle);
+      expect(selected.plan.exercises.length, 2);
+    });
+
+    test('mehrere Pläne: zuletzt importierter ist ausgewählt, '
+        'selectPlan wechselt', () async {
+      final storage = StorageService();
+      final plan = PlanParser.parse(validPlanJson);
+      final first = await storage.addPlan(plan);
+      final second = await storage.addPlan(plan);
+
+      expect((await storage.loadSelectedPlan())!.id, second.id);
+      await storage.selectPlan(first.id);
+      expect((await storage.loadSelectedPlan())!.id, first.id);
+    });
+
+    test('deletePlan entfernt nur den Plan; Auswahl fällt zurück und '
+        'Historie bleibt unberührt', () async {
+      final storage = StorageService();
+      await storage.addSession(buildSession());
+      final plan = PlanParser.parse(validPlanJson);
+      final first = await storage.addPlan(plan);
+      final second = await storage.addPlan(plan);
+
+      await storage.deletePlan(second.id);
+
+      final plans = await storage.loadPlans();
+      expect(plans.single.id, first.id);
+      expect((await storage.loadSelectedPlan())!.id, first.id);
+      // Historie unangetastet (Kernanforderung).
+      expect((await storage.loadSessions()).length, 1);
+
+      await storage.deletePlan(first.id);
+      expect(await storage.loadPlans(), isEmpty);
+      expect(await storage.loadSelectedPlan(), isNull);
+    });
+
+    test('Migration: alter Single-Plan-Key wird verlustfrei in die '
+        'Bibliothek überführt', () async {
+      // Alt-Zustand einer 0.2.x-Installation nachstellen.
+      final plan = PlanParser.parse(validPlanJson);
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'flutter.flexiplan_active_plan': jsonEncode(plan.toJson()),
+      });
+
+      final storage = StorageService();
+      final plans = await storage.loadPlans();
+      expect(plans.length, 1);
+      expect(plans.single.plan.workoutTitle, plan.workoutTitle);
+      final selected = await storage.loadSelectedPlan();
+      expect(selected!.id, plans.single.id);
+
+      // Alt-Key ist weg, erneutes Laden dupliziert nichts.
+      expect((await storage.loadPlans()).length, 1);
+    });
   });
 }

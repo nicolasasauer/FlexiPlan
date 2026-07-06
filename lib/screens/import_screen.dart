@@ -87,7 +87,39 @@ class _ImportScreenState extends State<ImportScreen> {
     if (plan == null) {
       return;
     }
-    await widget.storage.saveActivePlan(plan);
+    // Soft-Limit (kein hartes Limit): Ab 20 Plänen nur noch mit
+    // ausdrücklicher Bestätigung, damit die Bibliothek übersichtlich bleibt.
+    final existing = await widget.storage.loadPlans();
+    if (existing.length >= StorageService.softPlanLimit) {
+      if (!mounted) {
+        return;
+      }
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Viele Pläne gespeichert'),
+          content: Text('Du hast bereits ${existing.length} Pläne in '
+              'deiner Bibliothek. Trotzdem speichern? Nicht mehr genutzte '
+              'Pläne kannst du auf dem Startbildschirm löschen.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child:
+                  const Text('Abbrechen', style: TextStyle(fontSize: 18)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Trotzdem speichern',
+                  style: TextStyle(fontSize: 18)),
+            ),
+          ],
+        ),
+      );
+      if (proceed != true) {
+        return;
+      }
+    }
+    await widget.storage.addPlan(plan);
     if (!mounted) {
       return;
     }
