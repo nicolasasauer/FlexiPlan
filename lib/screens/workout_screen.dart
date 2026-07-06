@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../models/workout_plan.dart';
 import '../models/workout_session.dart';
+import '../services/native_feedback.dart';
 import '../services/storage_service.dart';
 import '../utils/uuid.dart';
 import 'summary_screen.dart';
@@ -53,12 +55,30 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _startTime = DateTime.now();
     _logs = List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
     _setupCurrentSet();
+    // Bildschirmsperre-Prävention (Lastenheft 3.1): Display bleibt während
+    // des gesamten Workouts wach.
+    NativeFeedback.keepScreenOn(true);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    NativeFeedback.keepScreenOn(false);
     super.dispose();
+  }
+
+  /// Akustischer Countdown (Lastenheft 2.4): Tick + Haptik in den letzten
+  /// 3 Sekunden eines laufenden Timers.
+  void _signalCountdownTick() {
+    if (_secondsRemaining >= 1 && _secondsRemaining <= 3) {
+      NativeFeedback.tick();
+      HapticFeedback.mediumImpact();
+    }
+  }
+
+  void _signalTimerEnd() {
+    NativeFeedback.end();
+    HapticFeedback.heavyImpact();
   }
 
   void _setupCurrentSet() {
@@ -80,6 +100,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _phase = _Phase.timing;
       _secondsRemaining = _exercise.durationSeconds;
     });
+    NativeFeedback.start();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 1) {
         timer.cancel();
@@ -88,8 +109,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           _durationValue = _exercise.durationSeconds;
           _phase = _Phase.logging;
         });
+        _signalTimerEnd();
       } else {
         setState(() => _secondsRemaining -= 1);
+        _signalCountdownTick();
       }
     });
   }
@@ -114,9 +137,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 1) {
         timer.cancel();
+        _signalTimerEnd();
         _advanceToNextSet();
       } else {
         setState(() => _secondsRemaining -= 1);
+        _signalCountdownTick();
       }
     });
   }
