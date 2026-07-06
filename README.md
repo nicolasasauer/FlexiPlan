@@ -50,11 +50,21 @@ Ein Trainingsplan ist ein JSON-Objekt mit folgender Struktur:
       "type": "reps",
       "sets": 3,
       "reps": 12,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {
       "id": 2,
+      "name": "Kurzhantel-Rudern",
+      "description": "Rücken gerade, Hantel zur Hüfte ziehen, Schulterblatt nach hinten-unten.",
+      "type": "reps",
+      "sets": 3,
+      "reps": 10,
+      "weight_kg": 12.5,
+      "rest_duration_seconds": 60
+    },
+    {
+      "id": 3,
       "name": "Plank (Unterarmstütz)",
       "description": "Bauch und Gesäß maximal anspannen. Kein Hohlkreuz bilden.",
       "type": "time",
@@ -80,7 +90,8 @@ Ein Trainingsplan ist ein JSON-Objekt mit folgender Struktur:
 | `type` | String | ✅ | `"reps"` (wiederholungsbasiert) oder `"time"` (zeitbasiert) |
 | `sets` | Integer ≥ 1 | ✅ | Anzahl der Sätze |
 | `reps` | Integer ≥ 1 | bei `"reps"` | Ziel-Wiederholungen pro Satz |
-| `weight_kg` | Zahl ≥ 0 | – | Gewicht in kg (`0` = Eigengewicht), nur bei `"reps"` |
+| `weight_kg` | Zahl ≥ 0 | – | Gewicht in kg, nur bei `"reps"` |
+| `bodyweight` | Boolean | – | `true` = reine Eigengewichts-Übung (z. B. Liegestütze): Die App blendet die Gewichtseingabe komplett aus. Fehlt das Feld, verhält sich alles wie bisher |
 | `duration_seconds` | Integer ≥ 1 | bei `"time"` | Belastungsdauer pro Satz in Sekunden |
 | `rest_duration_seconds` | Integer ≥ 0 | ✅ | Pause nach jedem Satz in Sekunden |
 
@@ -106,7 +117,7 @@ Erstelle mir einen Trainingsplan als JSON-Datei nach exakt diesem Schema
       "type": "reps",
       "sets": <Ganzzahl >= 1>,
       "reps": <Ganzzahl >= 1>,
-      "weight_kg": <Zahl >= 0, 0 bedeutet Eigengewicht>,
+      "weight_kg": <Zahl >= 0; Feld weglassen und stattdessen "bodyweight": true setzen, wenn die Übung rein mit Eigengewicht funktioniert>,
       "rest_duration_seconds": <Ganzzahl >= 0>
     },
     {
@@ -124,6 +135,10 @@ Erstelle mir einen Trainingsplan als JSON-Datei nach exakt diesem Schema
 Regeln:
 - "type" ist entweder "reps" (dann sind "reps" Pflicht und "weight_kg" optional)
   oder "time" (dann ist "duration_seconds" Pflicht).
+- Reine Eigengewichts-Übungen (Liegestütze, Klimmzüge, Kniebeugen ohne
+  Zusatzgewicht ...) bekommen "bodyweight": true statt "weight_kg" – die App
+  fragt dann kein Gewicht ab. Übungen, bei denen Zusatzgewicht möglich ist,
+  nutzen "weight_kg" (auch mit Startwert 0).
 - "rest_duration_seconds" ist bei jeder Übung Pflicht.
 - Die "description" wird während des Trainings angezeigt: Schreibe sie kurz
   (aber so ausführlich wie nötig), präzise und eindeutig auf Deutsch – die

@@ -117,6 +117,47 @@ void main() {
       }
     });
 
+    test('bodyweight: true wird geparst, Gewicht bleibt 0', () {
+      const json = '''
+      {
+        "workout_title": "Test",
+        "exercises": [
+          {"id": 1, "name": "Liegestütze", "type": "reps", "sets": 3,
+           "reps": 10, "bodyweight": true, "rest_duration_seconds": 30}
+        ]
+      }
+      ''';
+      final plan = PlanParser.parse(json);
+      expect(plan.exercises.single.bodyweight, isTrue);
+      expect(plan.exercises.single.weightKg, 0);
+      // Roundtrip erhält das Flag.
+      final restored = WorkoutPlan.fromJson(plan.toJson());
+      expect(restored.exercises.single.bodyweight, isTrue);
+    });
+
+    test('altes Schema ohne bodyweight bleibt gültig (Rückwärtskompat.)', () {
+      final plan = PlanParser.parse(validPlanJson);
+      expect(plan.exercises.first.bodyweight, isFalse);
+    });
+
+    test('bodyweight mit falschem Typ wird gemeldet', () {
+      const json = '''
+      {
+        "workout_title": "Test",
+        "exercises": [
+          {"id": 1, "name": "X", "type": "reps", "sets": 1, "reps": 1,
+           "bodyweight": "ja", "rest_duration_seconds": 30}
+        ]
+      }
+      ''';
+      try {
+        PlanParser.parse(json);
+        fail('Exception erwartet');
+      } on PlanValidationException catch (e) {
+        expect(e.errors.single, contains('"bodyweight"'));
+      }
+    });
+
     test('type "reps" ohne reps wird gemeldet', () {
       const json = '''
       {

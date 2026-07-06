@@ -131,6 +131,11 @@ class PlanParser {
       if (weight != null && (weight is! num || weight < 0)) {
         errors.add('$label: Feld "weight_kg" muss eine Zahl >= 0 sein.');
       }
+      // Optionales Eigengewichts-Flag (Schema-Erweiterung, abwärts-
+      // kompatibel: fehlt es, gilt die Übung wie bisher als gewichtsbasiert).
+      if (ex.containsKey('bodyweight') && ex['bodyweight'] is! bool) {
+        errors.add('$label: Feld "bodyweight" muss true oder false sein.');
+      }
     } else {
       // type == 'time'
       final duration = ex['duration_seconds'];

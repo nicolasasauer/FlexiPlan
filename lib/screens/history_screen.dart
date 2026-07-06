@@ -74,9 +74,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       child: Text(
                         '${_formatDate(session.date)}\n'
                         '${session.durationMinutes} Min. · '
-                        '${session.completedSetCount} Sätze · '
-                        '${session.totalVolumeKg.toStringAsFixed(1)} kg '
-                        'Volumen',
+                        '${session.completedSetCount} Sätze'
+                        '${session.totalVolumeKg > 0 ? ' · ${session.totalVolumeKg.toStringAsFixed(1)} kg Volumen' : ''}',
                         style: theme.textTheme.bodyLarge,
                       ),
                     ),

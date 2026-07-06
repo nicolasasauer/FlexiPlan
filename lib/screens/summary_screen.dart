@@ -47,12 +47,15 @@ class SummaryScreen extends StatelessWidget {
                       label: 'Wiederholungen gesamt',
                       value: '${session.totalReps}',
                     ),
-                    _StatRow(
-                      icon: Icons.fitness_center,
-                      label: 'Bewegtes Volumen',
-                      value:
-                          '${session.totalVolumeKg.toStringAsFixed(1)} kg',
-                    ),
+                    // Bei reinen Eigengewichts-Workouts wäre "0.0 kg" nur
+                    // verwirrend – die Zeile entfällt dann.
+                    if (session.totalVolumeKg > 0)
+                      _StatRow(
+                        icon: Icons.fitness_center,
+                        label: 'Bewegtes Volumen',
+                        value:
+                            '${session.totalVolumeKg.toStringAsFixed(1)} kg',
+                      ),
                   ],
                 ),
               ),
@@ -76,8 +79,8 @@ class SummaryScreen extends StatelessWidget {
                                   ? 'Satz ${set.setNumber}: '
                                       '${set.durationActualSeconds} Sek.'
                                   : 'Satz ${set.setNumber}: '
-                                      '${set.repsActual} Wdh. à '
-                                      '${set.weightActualKg.toStringAsFixed(1)} kg',
+                                      '${set.repsActual} Wdh.'
+                                      '${set.weightActualKg > 0 ? ' à ${set.weightActualKg.toStringAsFixed(1)} kg' : ''}',
                           style: theme.textTheme.bodyLarge,
                         ),
                     ],

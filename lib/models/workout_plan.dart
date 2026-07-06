@@ -33,6 +33,7 @@ class Exercise {
     required this.sets,
     required this.reps,
     required this.weightKg,
+    required this.bodyweight,
     required this.durationSeconds,
     required this.restDurationSeconds,
   });
@@ -49,6 +50,10 @@ class Exercise {
   /// Nur relevant bei [ExerciseType.reps]. 0 = Eigengewicht.
   final double weightKg;
 
+  /// Reine Eigengewichts-Übung (optionales Schema-Feld, Default false):
+  /// Im Log-Screen entfällt die Gewichtseingabe komplett.
+  final bool bodyweight;
+
   /// Nur relevant bei [ExerciseType.time].
   final int durationSeconds;
 
@@ -64,6 +69,7 @@ class Exercise {
       sets: json['sets'] as int,
       reps: (json['reps'] as num?)?.toInt() ?? 0,
       weightKg: (json['weight_kg'] as num?)?.toDouble() ?? 0.0,
+      bodyweight: (json['bodyweight'] as bool?) ?? false,
       durationSeconds: (json['duration_seconds'] as num?)?.toInt() ?? 0,
       restDurationSeconds: (json['rest_duration_seconds'] as num).toInt(),
     );
@@ -76,7 +82,8 @@ class Exercise {
         'type': exerciseTypeToString(type),
         'sets': sets,
         if (type == ExerciseType.reps) 'reps': reps,
-        if (type == ExerciseType.reps) 'weight_kg': weightKg,
+        if (type == ExerciseType.reps && !bodyweight) 'weight_kg': weightKg,
+        if (bodyweight) 'bodyweight': true,
         if (type == ExerciseType.time) 'duration_seconds': durationSeconds,
         'rest_duration_seconds': restDurationSeconds,
       };

@@ -10,7 +10,7 @@
       "type": "reps",
       "sets": 3,
       "reps": 15,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {
@@ -20,7 +20,7 @@
       "type": "reps",
       "sets": 3,
       "reps": 10,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {
@@ -30,7 +30,7 @@
       "type": "reps",
       "sets": 3,
       "reps": 12,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {
@@ -40,7 +40,7 @@
       "type": "reps",
       "sets": 3,
       "reps": 12,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 45
     },
     {

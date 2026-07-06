@@ -84,7 +84,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   void _setupCurrentSet() {
     final ex = _exercise;
     _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
-    _weightValue = ex.weightKg;
+    _weightValue = ex.bodyweight ? 0 : ex.weightKg;
     _durationValue = ex.type == ExerciseType.time ? ex.durationSeconds : 0;
     _phase =
         ex.type == ExerciseType.time ? _Phase.ready : _Phase.logging;
@@ -463,18 +463,21 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
                 : null,
             onIncrement: () => setState(() => _repsValue += 1),
           ),
-          const SizedBox(height: 20),
-          _ValueStepper(
-            label: 'Gewicht (kg)',
-            value: _weightValue.toStringAsFixed(1),
-            onDecrement: _weightValue > 0
-                ? () => setState(() {
-                      final next = _weightValue - 2.5;
-                      _weightValue = next < 0 ? 0 : next;
-                    })
-                : null,
-            onIncrement: () => setState(() => _weightValue += 2.5),
-          ),
+          // Bei reinen Eigengewichts-Übungen entfällt die Gewichtseingabe.
+          if (!ex.bodyweight) ...[
+            const SizedBox(height: 20),
+            _ValueStepper(
+              label: 'Gewicht (kg)',
+              value: _weightValue.toStringAsFixed(1),
+              onDecrement: _weightValue > 0
+                  ? () => setState(() {
+                        final next = _weightValue - 2.5;
+                        _weightValue = next < 0 ? 0 : next;
+                      })
+                  : null,
+              onIncrement: () => setState(() => _weightValue += 2.5),
+            ),
+          ],
         ] else
           _ValueStepper(
             label: 'Sekunden (Ist)',
