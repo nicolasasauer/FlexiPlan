@@ -1,7 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../models/workout_session.dart';
 import '../services/storage_service.dart';
+import 'progress_screen.dart';
 import 'summary_screen.dart';
 
 /// Lokale Historie (Lastenheft 2.3): chronologische Liste aller
@@ -31,11 +36,60 @@ class _HistoryScreenState extends State<HistoryScreen> {
         '${two(local.hour)}:${two(local.minute)} Uhr';
   }
 
+  /// Manuelles Backup (Lastenheft 3.2): exportiert die gesamte Historie
+  /// als flexiplan_backup.json an einen vom Nutzer gewählten Ort.
+  Future<void> _exportBackup() async {
+    final json = await widget.storage.exportHistoryJson();
+    final bytes = Uint8List.fromList(utf8.encode(json));
+    String? path;
+    try {
+      path = await FilePicker.platform.saveFile(
+        dialogTitle: 'Backup speichern',
+        fileName: 'flexiplan_backup.json',
+        bytes: bytes,
+      );
+    } on Object {
+      path = null;
+    }
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(path == null
+            ? 'Backup abgebrochen.'
+            : 'Backup gespeichert: $path'),
+      ),
+    );
+  }
+
+  void _openProgress() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => ProgressScreen(storage: widget.storage),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Verlauf')),
+      appBar: AppBar(
+        title: const Text('Verlauf'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.trending_up, size: 28),
+            tooltip: 'Fortschritt',
+            onPressed: _openProgress,
+          ),
+          IconButton(
+            icon: const Icon(Icons.save_alt, size: 28),
+            tooltip: 'Backup exportieren',
+            onPressed: _exportBackup,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: FutureBuilder<List<WorkoutSession>>(
           future: _sessionsFuture,

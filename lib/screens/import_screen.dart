@@ -22,6 +22,10 @@ class ImportScreen extends StatefulWidget {
 class _ImportScreenState extends State<ImportScreen> {
   final TextEditingController _jsonController = TextEditingController();
 
+  /// Ziel für den Auto-Scroll zum Validierungsergebnis (Erfolg/Fehler) –
+  /// auf kleinen Displays läge es sonst unsichtbar unterhalb des Folds.
+  final GlobalKey _resultCardKey = GlobalKey();
+
   WorkoutPlan? _parsedPlan;
   List<String> _errors = const [];
   String? _sourceLabel;
@@ -30,6 +34,19 @@ class _ImportScreenState extends State<ImportScreen> {
   void dispose() {
     _jsonController.dispose();
     super.dispose();
+  }
+
+  void _scrollToResult() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _resultCardKey.currentContext;
+      if (context != null) {
+        Scrollable.ensureVisible(
+          context,
+          duration: const Duration(milliseconds: 300),
+          alignment: 0.1,
+        );
+      }
+    });
   }
 
   Future<void> _pickFile() async {
@@ -80,6 +97,7 @@ class _ImportScreenState extends State<ImportScreen> {
         _errors = e.errors;
       }
     });
+    _scrollToResult();
   }
 
   Future<void> _activatePlan() async {
@@ -173,8 +191,16 @@ class _ImportScreenState extends State<ImportScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            if (_errors.isNotEmpty) _buildErrorCard(theme),
-            if (_parsedPlan != null) _buildPreviewCard(theme),
+            // Gemeinsamer Anker für den Auto-Scroll zum Ergebnis.
+            KeyedSubtree(
+              key: _resultCardKey,
+              child: Column(
+                children: [
+                  if (_errors.isNotEmpty) _buildErrorCard(theme),
+                  if (_parsedPlan != null) _buildPreviewCard(theme),
+                ],
+              ),
+            ),
             _buildTemplatesHintCard(theme),
           ],
         ),
