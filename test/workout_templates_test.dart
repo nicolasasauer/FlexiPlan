@@ -4,12 +4,11 @@ import 'package:flexiplan/services/plan_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Stellt sicher, dass alle im Repository mitgelieferten Workout-Vorlagen
-/// dauerhaft dem Import-Schema (Lastenheft 4.1) entsprechen. Schlägt eine
+/// dauerhaft dem Import-Schema entsprechen. Schlägt eine
 /// Vorlage fehl, listet der Test das vollständige Fehlerprotokoll auf.
 void main() {
   final templateFiles = <File>[
     File('beispiel_trainingsplan.json'),
-    File('TestWorkouts/v_cut.json'),
     ...Directory('workouts')
         .listSync()
         .whereType<File>()
@@ -18,8 +17,8 @@ void main() {
 
   test('Vorlagen-Verzeichnis enthält Workouts', () {
     expect(templateFiles.length, greaterThanOrEqualTo(8),
-        reason: 'Erwartet: beispiel_trainingsplan.json, v_cut.json und '
-            'mindestens 6 Vorlagen unter workouts/.');
+        reason: 'Erwartet: beispiel_trainingsplan.json und mindestens '
+            '7 Vorlagen unter workouts/.');
   });
 
   for (final file in templateFiles) {

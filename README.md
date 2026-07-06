@@ -28,8 +28,8 @@ Einfach Datei öffnen, Inhalt kopieren und in der App unter **Trainingsplan impo
 | [Bein-Tag](workouts/beine_po_kurzhanteln.json) | Beine, Gesäß | Kurzhanteln |
 | [HIIT-Zirkel ~20 min](workouts/hiit_zirkel_20min.json) | Ausdauer, Fettverbrennung | keins |
 | [Mobility-Abendroutine](workouts/mobility_abendroutine.json) | Beweglichkeit, Cooldown | keins |
-| [V-Cut Core Finisher](TestWorkouts/v_cut.json) | Unterer Bauch, schräge Bauchmuskeln | Klimmzugstange |
-| [Ganzkörper Heimtraining](beispiel_trainingsplan.json) | Minimalbeispiel aus der Spezifikation | keins |
+| [V-Cut Core Finisher](workouts/v_cut.json) | Unterer Bauch, schräge Bauchmuskeln | Klimmzugstange |
+| [Ganzkörper Heimtraining](beispiel_trainingsplan.json) | Kompaktes Minimalbeispiel | keins |
 
 Alle Vorlagen werden per Test ([test/workout_templates_test.dart](test/workout_templates_test.dart)) automatisch gegen das Schema validiert.
 
@@ -149,7 +149,7 @@ flutter test integration_test/app_test.dart -d <device>  # E2E auf Emulator/Ger�
 flutter run
 ```
 
-Details zur Teststrategie und bekannten Build-Besonderheiten (file_picker/AGP): [TEST_REPORT_AND_OPTIMIZATION.md](TEST_REPORT_AND_OPTIMIZATION.md). Anforderungen: [Lastenheft_FlexiPlan_V1_2.pdf](Lastenheft_FlexiPlan_V1_2.pdf).
+Die Unit-, Widget- und Vorlagen-Tests laufen lokal ohne Emulator. Der Integrationstest benötigt ein verbundenes Android-Gerät oder einen Emulator.
 
 ## Datenschutz
 

@@ -1,16 +1,16 @@
-// E2E-Tests für FlexiPlan (Lastenheft V1.2) auf dem Android-Emulator.
+// E2E-Tests für FlexiPlan auf dem Android-Emulator.
 //
 // TEST CASE 1: Datei-Import via File Picker aus /sdcard/Download
 //              (Datei zuvor per `adb push` auf den Emulator geschoben).
 // TEST CASE 2: Copy-Paste-Import + vollständiger Workout-Durchlauf über
-//              alle 3 Übungen aus TestWorkouts/v_cut.json bis zum
+//              alle 3 Übungen aus workouts/v_cut.json bis zum
 //              Summary-Screen inkl. Zahlen-Verifikation.
 //
-// Ausführung (Emulator muss laufen, siehe TEST_REPORT_AND_OPTIMIZATION.md):
-//   adb push "TestWorkouts/v_cut.json" /sdcard/Download/Vcut.json
+// Ausführung:
+//   adb push "workouts/v_cut.json" /sdcard/Download/Vcut.json
 //   flutter test integration_test/app_test.dart -d <device-id>
 //
-// Werkzeug-Grenze (kein App-Bug, siehe TEST_REPORT): Der native
+// Werkzeug-Grenze (kein App-Bug): Der native
 // Android-SAF-Dateiauswahldialog läuft in einer eigenen System-Activity
 // außerhalb des Flutter-Widget-Baums und kann nicht per WidgetTester
 // bedient werden. TEST CASE 1 ersetzt deshalb FilePicker.platform
@@ -38,7 +38,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Exakte Kopie von TestWorkouts/v_cut.json, eingebettet für den
+/// Exakte Kopie von workouts/v_cut.json, eingebettet für den
 /// Copy-Paste-Import (TEST CASE 2) analog zum bestehenden Muster in
 /// test/plan_parser_test.dart.
 const String _vCutJsonContent = '''
@@ -81,7 +81,7 @@ const String _vCutJsonContent = '''
 ''';
 
 /// Pfad, unter dem die Testdatei vor dem Testlauf abgelegt wird:
-/// `adb push "TestWorkouts/v_cut.json" /sdcard/Download/Vcut.json`.
+/// `adb push "workouts/v_cut.json" /sdcard/Download/Vcut.json`.
 const String _adbPushedFilePath = '/storage/emulated/0/Download/Vcut.json';
 
 /// Test-Bridge für TEST CASE 1 (siehe Datei-Kommentar). Liest bevorzugt
@@ -116,7 +116,7 @@ class _PushedFileFilePicker extends FilePicker {
       // ignore: avoid_print
       print('[E2E] Direktzugriff auf $_adbPushedFilePath fehlgeschlagen: '
           '$error. Nutze eingebettete Kopie als Fallback (siehe '
-          'TEST_REPORT_AND_OPTIMIZATION.md).');
+          'Dateikommentar).');
       bytes = Uint8List.fromList(utf8.encode(_vCutJsonContent));
     }
     return FilePickerResult(<PlatformFile>[
@@ -254,9 +254,9 @@ void main() {
             tester.widget<SummaryScreen>(find.byType(SummaryScreen));
         final session = summary.session;
 
-        // Erwartung: 8 bestätigte Sätze, 1 übersprungener Satz (Lastenheft
-        // 2.3), 76 Wiederholungen gesamt (36 aus Übung 1 + 40 aus Übung 2,
-        // Übung 3 ist zeitbasiert und zählt lt. Schema 4.2 nicht zu
+        // Erwartung: 8 bestätigte Sätze, 1 übersprungener Satz, 76
+        // Wiederholungen gesamt (36 aus Übung 1 + 40 aus Übung 2,
+        // Übung 3 ist zeitbasiert und zählt nicht zu
         // reps/Volumen), 30,0 kg Volumen (nur Satz 1 von Übung 1: 12 x 2,5).
         expect(session.completedSetCount, 8);
         expect(session.skippedSetCount, 1);
@@ -353,7 +353,7 @@ Future<void> _skipSetWithSafetyPrompt(WidgetTester tester,
   await tester.tap(find.text('Satz überspringen'));
   await tester.pumpAndSettle();
 
-  // Sicherheitsabfrage lt. Lastenheft 2.2 – nennt den konkreten Satz.
+  // Sicherheitsabfrage nennt den konkreten Satz.
   expect(find.text('Satz $setNumber überspringen?'), findsOneWidget);
   await tester.tap(find.text('Überspringen'));
   await tester.pumpAndSettle();
