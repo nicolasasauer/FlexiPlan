@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import '../app_links.dart';
 import '../models/stored_plan.dart';
 import '../models/workout_plan.dart';
+import '../services/reminder_service.dart';
 import '../services/storage_service.dart';
 import 'history_screen.dart';
 import 'import_screen.dart';
+import 'reminder_screen.dart';
 import 'workout_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -21,6 +23,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final ReminderService _reminders = ReminderService();
+
   List<StoredPlan> _plans = const [];
   StoredPlan? _selected;
   int _sessionCount = 0;
@@ -151,6 +155,15 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('FlexiPlan'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications_none, size: 28),
+            tooltip: 'Trainings-Erinnerung',
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => ReminderScreen(reminders: _reminders),
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.code, size: 28),
             tooltip: 'Open Source auf GitHub',

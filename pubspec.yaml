@@ -12,6 +12,9 @@ dependencies:
     sdk: flutter
   shared_preferences: ^2.3.0
   url_launcher: ^6.3.0
+  flutter_local_notifications: ^19.0.0
+  flutter_timezone: ^4.0.0
+  timezone: ^0.10.0
   # 10.x statt 11.x: file_picker 11 setzt unter AGP 9 Built-in Kotlin
   # voraus, das Flutter 3.44 noch nicht unterstützt (Build bricht mit
   # "Symbol nicht gefunden: FilePickerPlugin"). 10.x wendet das klassische
