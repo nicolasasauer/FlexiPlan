@@ -1,7 +1,7 @@
 name: flexiplan
 description: Minimalistischer, lokaler Workout-Begleiter und digitales Trainingstagebuch.
 publish_to: 'none'
-version: 0.2.0+2
+version: 0.3.0+3
 
 # Benötigt Flutter >= 3.29 (CardThemeData/DialogThemeData, PopScope).
 environment:

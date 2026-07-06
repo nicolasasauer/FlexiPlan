@@ -10,6 +10,9 @@ build/
 .vscode/
 *.iml
 
+# Lokale Arbeitsdateien (bewusst nicht im Repo)
+ROADMAP.local.md
+
 # Plattform-Build-Artefakte
 android/.gradle/
 android/.kotlin/
