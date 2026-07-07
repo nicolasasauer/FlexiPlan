@@ -158,6 +158,8 @@ Die Antwort der KI kopierst du in der App unter **Trainingsplan importieren → 
 
 Flutter-App (Dart), Zielplattformen Android und Windows. Benötigt Flutter ≥ 3.29.
 
+FlexiPlan wurde von einem menschlichen Entwickler konzipiert und verantwortet; Coding Agents wurden unterstützend für Implementierung, Tests und Dokumentation eingesetzt.
+
 ```bash
 flutter pub get
 flutter analyze
