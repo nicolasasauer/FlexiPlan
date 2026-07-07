@@ -101,47 +101,62 @@ Die App validiert beim Import jedes Feld und zeigt bei Verstößen ein vollstän
 
 ## Eigene Workouts erstellen (auch per KI)
 
-Du kannst Pläne von Hand schreiben, von deinem Coach im obigen Format bekommen – oder dir von einer beliebigen KI generieren lassen. Kopiere dazu einfach diesen Prompt und ergänze deine Wünsche:
+Du kannst Pläne von Hand schreiben, von deinem Coach im obigen Format bekommen – oder dir von einer beliebigen KI generieren lassen.
+
+Kopiere den kompletten folgenden Prompt in ChatGPT, Claude, Gemini oder ein anderes KI-Tool und ersetze unten nur den Abschnitt **Meine Wünsche**:
 
 ```text
-Erstelle mir einen Trainingsplan als JSON-Datei nach exakt diesem Schema
-(keine zusätzlichen Felder, keine Kommentare, nur das reine JSON):
+Erstelle mir einen Trainingsplan als valides JSON für FlexiPlan.
 
+Antworte ausschließlich mit dem JSON-Objekt:
+- kein Markdown-Codeblock
+- keine Kommentare
+- keine Erklärung vor oder nach dem JSON
+- keine zusätzlichen Felder
+
+Nutze genau diese Struktur. Das Beispiel zeigt nur die erlaubten Felder;
+ersetze alle Inhalte durch einen passenden Trainingsplan für meine Wünsche:
+
+Beispiel für die Struktur:
 {
-  "workout_title": "<Name des Workouts>",
+  "workout_title": "Ganzkörper Heimtraining",
   "version": "1.0",
-  "description": "<Kurzbeschreibung>",
+  "description": "Kurzes Ganzkörpertraining ohne Geräte.",
   "exercises": [
     {
-      "id": <fortlaufende Ganzzahl ab 1>,
-      "name": "<Übungsname>",
-      "description": "<kurze Ausführungshinweise>",
+      "id": 1,
+      "name": "Liegestütze",
+      "description": "Hände unter den Schultern, Körper gerade halten, Brust kontrolliert Richtung Boden senken und wieder hochdrücken.",
       "type": "reps",
-      "sets": <Ganzzahl >= 1>,
-      "reps": <Ganzzahl >= 1>,
-      "weight_kg": <Zahl >= 0; Feld weglassen und stattdessen "bodyweight": true setzen, wenn die Übung rein mit Eigengewicht funktioniert>,
-      "rest_duration_seconds": <Ganzzahl >= 0>
+      "sets": 3,
+      "reps": 12,
+      "bodyweight": true,
+      "rest_duration_seconds": 60
     },
     {
-      "id": <nächste Nummer>,
-      "name": "<zeitbasierte Übung, z. B. Plank>",
-      "description": "<kurze Ausführungshinweise>",
+      "id": 2,
+      "name": "Plank",
+      "description": "Unterarme am Boden, Bauch und Gesäß anspannen, Körper von Kopf bis Ferse in einer geraden Linie halten.",
       "type": "time",
-      "sets": <Ganzzahl >= 1>,
-      "duration_seconds": <Ganzzahl >= 1>,
-      "rest_duration_seconds": <Ganzzahl >= 0>
+      "sets": 3,
+      "duration_seconds": 45,
+      "rest_duration_seconds": 60
     }
   ]
 }
 
 Regeln:
-- "type" ist entweder "reps" (dann sind "reps" Pflicht und "weight_kg" optional)
-  oder "time" (dann ist "duration_seconds" Pflicht).
-- Reine Eigengewichts-Übungen (Liegestütze, Klimmzüge, Kniebeugen ohne
-  Zusatzgewicht ...) bekommen "bodyweight": true statt "weight_kg" – die App
-  fragt dann kein Gewicht ab. Übungen, bei denen Zusatzgewicht möglich ist,
-  nutzen "weight_kg" (auch mit Startwert 0).
-- "rest_duration_seconds" ist bei jeder Übung Pflicht.
+- "exercises" muss mindestens eine Übung enthalten.
+- "id" ist eine fortlaufende Ganzzahl ab 1.
+- "type" ist entweder "reps" oder "time".
+- Bei "type": "reps" ist "reps" Pflicht.
+- Bei "type": "reps" und Zusatzgewicht nutze "weight_kg" als Zahl in kg.
+- Bei reinen Eigengewichts-Übungen nutze "bodyweight": true und lasse
+  "weight_kg" weg.
+- Bei "type": "time" ist "duration_seconds" Pflicht; lasse "reps",
+  "weight_kg" und "bodyweight" weg.
+- "sets", "reps" und "duration_seconds" müssen Ganzzahlen >= 1 sein.
+- "rest_duration_seconds" ist bei jeder Übung Pflicht und eine Ganzzahl >= 0.
 - Die "description" wird während des Trainings angezeigt: Schreibe sie kurz
   (aber so ausführlich wie nötig), präzise und eindeutig auf Deutsch – die
   wichtigsten Technik-Hinweise, sodass die Übung nicht verwechselt und
