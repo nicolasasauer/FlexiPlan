@@ -118,9 +118,19 @@ class ReminderService {
     }
   }
 
+  /// Plant die Benachrichtigungen mit den gespeicherten Einstellungen
+  /// neu – z. B. nach einem Planwechsel, damit der Notification-Text den
+  /// aktuellen Plan nennt. No-op, wenn Erinnerungen deaktiviert sind.
+  Future<void> reapply({String? planTitle}) async {
+    final settings = await loadSettings();
+    if (settings.enabled) {
+      await apply(settings, planTitle: planTitle);
+    }
+  }
+
   /// Speichert die Einstellungen und plant alle Benachrichtigungen neu.
   /// Liefert false, wenn die Notification-Berechtigung fehlt.
-  Future<bool> apply(ReminderSettings settings) async {
+  Future<bool> apply(ReminderSettings settings, {String? planTitle}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefsKey, jsonEncode(settings.toJson()));
 
@@ -150,11 +160,14 @@ class ReminderService {
       ),
     );
 
+    final body = planTitle != null && planTitle.isNotEmpty
+        ? 'Heute dran: $planTitle'
+        : 'Dein Workout wartet – bleib an deinem Plan dran.';
     for (final weekday in settings.weekdays) {
       await _plugin.zonedSchedule(
         weekday, // stabile ID pro Wochentag (1-7)
         'Zeit fürs Training 💪',
-        'Dein Workout wartet – bleib an deinem Plan dran.',
+        body,
         _nextInstanceOf(weekday, settings.hour, settings.minute),
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

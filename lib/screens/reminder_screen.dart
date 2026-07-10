@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 
 import '../services/reminder_service.dart';
+import '../services/storage_service.dart';
 
 /// Minimalistische Einstellung der Trainings-Erinnerung: Uhrzeit +
 /// Wochentage, Änderungen werden sofort gespeichert und eingeplant.
 class ReminderScreen extends StatefulWidget {
-  const ReminderScreen({super.key, required this.reminders});
+  const ReminderScreen({
+    super.key,
+    required this.reminders,
+    required this.storage,
+  });
 
   final ReminderService reminders;
+  final StorageService storage;
 
   @override
   State<ReminderScreen> createState() => _ReminderScreenState();
@@ -32,7 +38,9 @@ class _ReminderScreenState extends State<ReminderScreen> {
 
   Future<void> _update(ReminderSettings next) async {
     setState(() => _settings = next);
-    final ok = await widget.reminders.apply(next);
+    final selected = await widget.storage.loadSelectedPlan();
+    final ok = await widget.reminders
+        .apply(next, planTitle: selected?.plan.workoutTitle);
     if (!mounted) {
       return;
     }

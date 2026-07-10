@@ -201,6 +201,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _selectPlan(StoredPlan plan) async {
     await widget.storage.selectPlan(plan.id);
+    // Geplante Erinnerungen nennen den aktiven Plan – nach dem Wechsel
+    // mit dem neuen Titel neu einplanen (No-op, wenn deaktiviert).
+    await _reminders.reapply(planTitle: plan.plan.workoutTitle);
     if (!mounted) {
       return;
     }
@@ -266,7 +269,10 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: 'Trainings-Erinnerung',
             onPressed: () => Navigator.of(context).push<void>(
               MaterialPageRoute(
-                builder: (_) => ReminderScreen(reminders: _reminders),
+                builder: (_) => ReminderScreen(
+                  reminders: _reminders,
+                  storage: widget.storage,
+                ),
               ),
             ),
           ),
