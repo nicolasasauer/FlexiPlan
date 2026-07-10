@@ -10,12 +10,13 @@ Trainingspläne sind einfache **JSON-Dateien** – du kannst sie aus den [fertig
 
 - **Plan-Bibliothek:** mehrere Trainingspläne speichern, direkt auf dem Startbildschirm wechseln, löschen oder als JSON wieder herauskopieren – inklusive aufklappbarer Übungs-Vorschau
 - **Hybrid-Import:** JSON-Datei auswählen *oder* direkt aus der Zwischenablage einfügen – mit Schema-Validierung und klarem Fehlerprotokoll
-- **Interaktiver Workout-Modus:** sequentielles Abarbeiten von Übung zu Übung, Satz zu Satz – das Display bleibt dabei wach (Wake-Lock)
-- **Duale Timer mit Audio-Countdown:** Belastungs-Timer für Zeit-Übungen (vorzeitig beendbar) und Rest-Timer mit „Pause überspringen"; Signalton und Vibration in den letzten 3 Sekunden
-- **Live-Tracking:** tatsächliche Wiederholungen und Gewicht (±2,5 kg) direkt über große Touch-Tasten anpassen und loggen; reine Eigengewichts-Übungen (`bodyweight: true`) kommen ganz ohne Gewichtseingabe aus
+- **Interaktiver Workout-Modus:** sequentielles Abarbeiten von Übung zu Übung, Satz zu Satz – das Display bleibt dabei wach (Wake-Lock), und ein unterbrochenes Workout (Anruf, App-Neustart) lässt sich nahtlos fortsetzen
+- **Sprachansagen & Audio-Countdown:** jede Übung wird angesagt („Nächste Übung: Kniebeugen, 3 Sätze à 15 Wiederholungen"), Signalton und Vibration in den letzten 3 Timer-Sekunden – gemeinsam stummschaltbar
+- **Duale Timer:** Belastungs-Timer für Zeit-Übungen (vorzeitig beendbar) und Rest-Timer mit „+30 Sek." und „Pause überspringen"
+- **Live-Tracking mit Progression:** Startwerte kommen automatisch von deiner zuletzt geschafften Leistung („Zuletzt: 12 × 5 kg"), anpassbar über große ±-Tasten; reine Eigengewichts-Übungen (`bodyweight: true`) kommen ganz ohne Gewichtseingabe aus
 - **Satz überspringen** mit Sicherheitsabfrage, in der Historie als `skipped` markiert
-- **Summary, Historie & Fortschritt:** Gesamtzeit, Sätze, Wiederholungen, bewegtes Volumen – plus Fortschritts-Analyse, die identische Übungen über Sessions hinweg vergleicht
-- **Backup:** die gesamte Historie als `flexiplan_backup.json` exportieren
+- **Summary, Historie & Fortschritt:** Gesamtzeit, Sätze, Wiederholungen, bewegtes Volumen – plus Fortschritts-Analyse, die identische Übungen über Sessions hinweg vergleicht; Fehleingaben lassen sich per Wischgeste löschen
+- **Backup:** die gesamte Historie als `flexiplan_backup.json` exportieren und auf jedem Gerät verlustfrei wieder importieren
 - **Dark-Mode-first**, große Schriften, „Hands-sweaty-optimierte" Touch-Zonen
 
 ## Fertige Workout-Vorlagen
