@@ -438,10 +438,26 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: _skipRest,
-          icon: const Icon(Icons.skip_next, size: 28),
-          label: const Text('Pause überspringen'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    setState(() => _secondsRemaining += 30),
+                icon: const Icon(Icons.more_time, size: 28),
+                label: const Text('+30 Sek.'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: OutlinedButton.icon(
+                onPressed: _skipRest,
+                icon: const Icon(Icons.skip_next, size: 28),
+                label: const Text('Pause überspringen'),
+              ),
+            ),
+          ],
         ),
       ],
     );

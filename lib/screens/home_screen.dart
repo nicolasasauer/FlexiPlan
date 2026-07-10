@@ -85,6 +85,26 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refresh();
   }
 
+  void _showAbout() {
+    showAboutDialog(
+      context: context,
+      applicationName: 'FlexiPlan',
+      applicationVersion: appVersion,
+      applicationLegalese: '© 2026 Nicolas Sauer · MIT-Lizenz',
+      children: [
+        const SizedBox(height: 16),
+        const Text('Minimalistischer, lokaler Workout-Begleiter. '
+            'Keine Cloud, kein Konto, keine Datenerhebung.'),
+        const SizedBox(height: 12),
+        TextButton.icon(
+          onPressed: () => openExternalUrl(gitHubRepoUrl),
+          icon: const Icon(Icons.code, size: 22),
+          label: const Text('Quellcode auf GitHub'),
+        ),
+      ],
+    );
+  }
+
   Future<void> _openHistory() async {
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -168,6 +188,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.code, size: 28),
             tooltip: 'Open Source auf GitHub',
             onPressed: () => openExternalUrl(gitHubRepoUrl),
+          ),
+          IconButton(
+            icon: const Icon(Icons.info_outline, size: 28),
+            tooltip: 'Über FlexiPlan',
+            onPressed: _showAbout,
           ),
         ],
       ),
