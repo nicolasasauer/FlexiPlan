@@ -130,6 +130,50 @@ void main() {
     });
   });
 
+  group('Historie: Import & Löschen', () {
+    test('importHistoryJson dedupliziert per session_id', () async {
+      final storage = StorageService();
+      await storage.addSession(buildSession());
+
+      final backup = await storage.exportHistoryJson();
+      // Erneutes Einspielen des eigenen Backups darf nichts duplizieren.
+      final first = await storage.importHistoryJson(backup);
+      expect(first.added, 0);
+      expect(first.skipped, 1);
+
+      // Backup mit einer neuen Session wird übernommen.
+      final extra = buildSession().toJson()
+        ..['session_id'] = 'neue-session-id';
+      final second = await storage.importHistoryJson(jsonEncode({
+        'data_version': StorageService.currentDataVersion,
+        'sessions': [extra],
+      }));
+      expect(second.added, 1);
+      expect((await storage.loadSessions()).length, 2);
+    });
+
+    test('importHistoryJson lehnt fremde Dateien ab', () async {
+      final storage = StorageService();
+      expect(() => storage.importHistoryJson('{"foo": 1}'),
+          throwsA(isA<FormatException>()));
+      expect(() => storage.importHistoryJson('kein json'),
+          throwsA(isA<FormatException>()));
+    });
+
+    test('deleteSession entfernt genau eine Session', () async {
+      final storage = StorageService();
+      await storage.addSession(buildSession());
+      final other = WorkoutSession.fromJson(
+          buildSession().toJson()..['session_id'] = 'andere-id');
+      await storage.addSession(other);
+
+      await storage.deleteSession('andere-id');
+      final remaining = await storage.loadSessions();
+      expect(remaining.single.sessionId,
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
+    });
+  });
+
   group('Workout-Entwurf (App-Kill-Schutz)', () {
     test('Draft speichern, laden und löschen', () async {
       final storage = StorageService();

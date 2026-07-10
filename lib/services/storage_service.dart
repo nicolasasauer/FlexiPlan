@@ -253,6 +253,63 @@ class StorageService {
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
 
+  /// Entfernt eine einzelne Session dauerhaft aus der Historie –
+  /// ausschließlich auf ausdrücklichen Nutzerwunsch (Fehleingaben).
+  Future<void> deleteSession(String sessionId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_sessionsKey) ?? <String>[];
+    list.removeWhere((raw) {
+      try {
+        return (jsonDecode(raw) as Map<String, dynamic>)['session_id'] ==
+            sessionId;
+      } on Object {
+        return false;
+      }
+    });
+    await prefs.setStringList(_sessionsKey, list);
+  }
+
+  /// Importiert Sessions aus einem Backup (Format von
+  /// [exportHistoryJson]). Bereits vorhandene session_ids und defekte
+  /// Einträge werden übersprungen – der Import ist damit beliebig oft
+  /// wiederholbar, ohne Duplikate zu erzeugen.
+  Future<({int added, int skipped})> importHistoryJson(String source) async {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(source);
+    } on FormatException {
+      throw const FormatException('Datei enthält kein gültiges JSON.');
+    }
+    if (decoded is! Map<String, dynamic> || decoded['sessions'] is! List) {
+      throw const FormatException(
+          'Keine gültige FlexiPlan-Backup-Datei (Feld "sessions" fehlt).');
+    }
+    final existingIds =
+        (await loadSessions()).map((s) => s.sessionId).toSet();
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_sessionsKey) ?? <String>[];
+    var added = 0;
+    var skipped = 0;
+    for (final raw in decoded['sessions'] as List<dynamic>) {
+      try {
+        final map =
+            migrateSession(Map<String, dynamic>.from(raw as Map));
+        final session = WorkoutSession.fromJson(map);
+        if (existingIds.contains(session.sessionId)) {
+          skipped++;
+          continue;
+        }
+        existingIds.add(session.sessionId);
+        list.add(jsonEncode(session.toJson()));
+        added++;
+      } on Object {
+        skipped++;
+      }
+    }
+    await prefs.setStringList(_sessionsKey, list);
+    return (added: added, skipped: skipped);
+  }
+
   // ---------------------------------------------------------------------
   // Schema-Migration
   // ---------------------------------------------------------------------

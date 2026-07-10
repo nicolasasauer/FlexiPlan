@@ -56,9 +56,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(path == null
-            ? 'Backup abgebrochen.'
-            : 'Backup gespeichert: $path'),
+        content: Text(
+          path == null ? 'Backup abgebrochen.' : 'Backup gespeichert: $path',
+        ),
       ),
     );
   }
@@ -69,6 +69,75 @@ class _HistoryScreenState extends State<HistoryScreen> {
         builder: (_) => ProgressScreen(storage: widget.storage),
       ),
     );
+  }
+
+  void _reload() {
+    setState(() {
+      _sessionsFuture = widget.storage.loadSessions();
+    });
+  }
+
+  /// Backup wieder einspielen (Gegenstück zu [_exportBackup]); per
+  /// session_id dedupliziert, mehrfaches Einspielen ist unschädlich.
+  Future<void> _importBackup() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['json'],
+      withData: true,
+    );
+    final bytes = result?.files.single.bytes;
+    if (bytes == null) {
+      return; // Abgebrochen.
+    }
+    String message;
+    try {
+      final outcome = await widget.storage.importHistoryJson(
+        utf8.decode(bytes),
+      );
+      message =
+          '${outcome.added} Sessions importiert'
+          '${outcome.skipped > 0 ? ', ${outcome.skipped} übersprungen (bereits vorhanden oder defekt)' : ''}.';
+      _reload();
+    } on FormatException catch (e) {
+      message = e.message;
+    } on Object {
+      message = 'Backup konnte nicht gelesen werden.';
+    }
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<bool> _confirmDeleteSession(WorkoutSession session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Session löschen?'),
+            content: Text(
+              '„${session.workoutTitle}" vom '
+              '${_formatDate(session.date)} wird dauerhaft aus der '
+              'Historie entfernt.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Abbrechen', style: TextStyle(fontSize: 18)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text(
+                  'Löschen',
+                  style: TextStyle(fontSize: 18, color: Colors.redAccent),
+                ),
+              ),
+            ],
+          ),
+    );
+    return confirmed == true;
   }
 
   @override
@@ -87,6 +156,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             icon: const Icon(Icons.save_alt, size: 28),
             tooltip: 'Backup exportieren',
             onPressed: _exportBackup,
+          ),
+          IconButton(
+            icon: const Icon(Icons.unarchive_outlined, size: 28),
+            tooltip: 'Backup importieren',
+            onPressed: _importBackup,
           ),
         ],
       ),
@@ -116,31 +190,53 @@ class _HistoryScreenState extends State<HistoryScreen> {
               itemCount: sessions.length,
               itemBuilder: (context, index) {
                 final session = sessions[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    title: Text(session.workoutTitle,
-                        style: theme.textTheme.titleLarge),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        '${_formatDate(session.date)}\n'
-                        '${session.durationMinutes} Min. · '
-                        '${session.completedSetCount} Sätze'
-                        '${session.totalVolumeKg > 0 ? ' · ${session.totalVolumeKg.toStringAsFixed(1)} kg Volumen' : ''}',
-                        style: theme.textTheme.bodyLarge,
-                      ),
+                return Dismissible(
+                  key: ValueKey(session.sessionId),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 28, bottom: 12),
+                    child: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.redAccent,
+                      size: 32,
                     ),
-                    trailing: const Icon(Icons.chevron_right, size: 32),
-                    onTap: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute(
-                          builder: (_) => SummaryScreen(session: session),
+                  ),
+                  confirmDismiss: (_) => _confirmDeleteSession(session),
+                  onDismissed: (_) async {
+                    await widget.storage.deleteSession(session.sessionId);
+                    _reload();
+                  },
+                  child: Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      title: Text(
+                        session.workoutTitle,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          '${_formatDate(session.date)}\n'
+                          '${session.durationMinutes} Min. · '
+                          '${session.completedSetCount} Sätze'
+                          '${session.totalVolumeKg > 0 ? ' · ${session.totalVolumeKg.toStringAsFixed(1)} kg Volumen' : ''}',
+                          style: theme.textTheme.bodyLarge,
                         ),
-                      );
-                    },
+                      ),
+                      trailing: const Icon(Icons.chevron_right, size: 32),
+                      onTap: () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute(
+                            builder: (_) => SummaryScreen(session: session),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 );
               },
