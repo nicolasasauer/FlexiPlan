@@ -18,10 +18,20 @@ enum _Phase { ready, timing, logging, resting }
 /// großen +/- Tasten, "Satz überspringen" mit Sicherheitsabfrage sowie
 /// Belastungs- und Rest-Timer.
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({super.key, required this.plan, required this.storage});
+  const WorkoutScreen({
+    super.key,
+    required this.plan,
+    required this.storage,
+    this.lastPerformances = const {},
+  });
 
   final WorkoutPlan plan;
   final StorageService storage;
+
+  /// Letzte geschaffte Leistung je Übungsname (Progression V1): dient als
+  /// Startwert-Vorschlag und "Zuletzt:"-Anzeige. Wird vom Aufrufer vor
+  /// dem Start geladen, damit die Werte ab dem ersten Frame stimmen.
+  final Map<String, ({SetLog log, DateTime date})> lastPerformances;
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -127,10 +137,33 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     HapticFeedback.heavyImpact();
   }
 
+  /// Letzte Leistung dieser Übung, sofern sie zum Übungstyp passt
+  /// (Reps-Übungen ignorieren zeitbasierte Alt-Sätze und umgekehrt).
+  ({SetLog log, DateTime date})? get _lastPerformance {
+    final last = widget.lastPerformances[_exercise.name];
+    if (last == null) {
+      return null;
+    }
+    final isTimeLog = last.log.durationActualSeconds != null;
+    final matchesType =
+        (_exercise.type == ExerciseType.time) == isTimeLog;
+    return matchesType ? last : null;
+  }
+
   void _setupCurrentSet() {
     final ex = _exercise;
-    _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
-    _weightValue = ex.bodyweight ? 0 : ex.weightKg;
+    final last = _lastPerformance;
+    // Progression V1: Die zuletzt geschaffte Leistung ist der neue
+    // Startwert-Vorschlag; ohne Historie gilt die Plan-Vorgabe. Die
+    // Timer-Dauer zeitbasierter Übungen bleibt bewusst die Plan-Vorgabe
+    // (ein früher abgebrochener Satz soll das Ziel nicht senken).
+    if (ex.type == ExerciseType.reps && last != null) {
+      _repsValue = last.log.repsActual > 0 ? last.log.repsActual : ex.reps;
+      _weightValue = ex.bodyweight ? 0 : last.log.weightActualKg;
+    } else {
+      _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
+      _weightValue = ex.bodyweight ? 0 : ex.weightKg;
+    }
     _durationValue = ex.type == ExerciseType.time ? ex.durationSeconds : 0;
     _phase =
         ex.type == ExerciseType.time ? _Phase.ready : _Phase.logging;
@@ -389,7 +422,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
+  String _formatLastPerformance(({SetLog log, DateTime date}) last) {
+    final local = last.date.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final date = '${two(local.day)}.${two(local.month)}.';
+    final log = last.log;
+    if (log.durationActualSeconds != null) {
+      return 'Zuletzt: ${log.durationActualSeconds} Sek. ($date)';
+    }
+    final weight = log.weightActualKg > 0
+        ? ' à ${log.weightActualKg.toStringAsFixed(1)} kg'
+        : '';
+    return 'Zuletzt: ${log.repsActual} Wdh.$weight ($date)';
+  }
+
   Widget _buildHeader(ThemeData theme, Exercise ex) {
+    final last = _lastPerformance;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -407,6 +455,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           style: theme.textTheme.titleMedium
               ?.copyWith(color: theme.colorScheme.primary),
         ),
+        if (last != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _formatLastPerformance(last),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
       ],
     );
   }

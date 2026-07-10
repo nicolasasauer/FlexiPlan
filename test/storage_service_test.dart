@@ -87,6 +87,49 @@ void main() {
     expect(migrated['workout_title'], legacy['workout_title']);
   });
 
+  group('Progression: loadLastPerformances', () {
+    test('liefert den letzten abgeschlossenen Satz der neuesten Session '
+        'und ignoriert übersprungene Sätze', () async {
+      final storage = StorageService();
+      // Ältere Session (buildSession: 2026-07-05, letzter completed Satz
+      // = 10 Wdh. à 20 kg, danach ein skipped Satz).
+      await storage.addSession(buildSession());
+      // Neuere Session mit besserer Leistung.
+      await storage.addSession(WorkoutSession(
+        dataVersion: StorageService.currentDataVersion,
+        sessionId: 'neuere-session',
+        date: DateTime.utc(2026, 7, 6, 18),
+        workoutTitle: 'Ganzkörper Heimtraining',
+        durationMinutes: 40,
+        completedExercises: const [
+          CompletedExercise(
+            exerciseName: 'Liegestütze',
+            setsLogged: [
+              SetLog(
+                  setNumber: 1,
+                  status: SetStatus.completed,
+                  repsActual: 14,
+                  weightActualKg: 22.5),
+              SetLog(
+                  setNumber: 2,
+                  status: SetStatus.skipped,
+                  repsActual: 0,
+                  weightActualKg: 0),
+            ],
+          ),
+        ],
+      ));
+
+      final result =
+          await storage.loadLastPerformances({'Liegestütze', 'Unbekannt'});
+      expect(result.containsKey('Unbekannt'), isFalse);
+      final last = result['Liegestütze']!;
+      expect(last.log.repsActual, 14);
+      expect(last.log.weightActualKg, 22.5);
+      expect(last.date, DateTime.utc(2026, 7, 6, 18));
+    });
+  });
+
   group('Plan-Bibliothek', () {
     test('addPlan speichert und wählt aus, loadSelectedPlan liefert ihn',
         () async {

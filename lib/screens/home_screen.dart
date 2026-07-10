@@ -76,10 +76,21 @@ class _HomeScreenState extends State<HomeScreen> {
     if (selected == null) {
       return;
     }
+    // Progression V1: letzte Leistungen vor dem Start laden, damit die
+    // Startwerte ab dem ersten Satz stimmen.
+    final lastPerformances = await widget.storage.loadLastPerformances(
+      selected.plan.exercises.map((e) => e.name).toSet(),
+    );
+    if (!mounted) {
+      return;
+    }
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
-        builder: (_) =>
-            WorkoutScreen(plan: selected.plan, storage: widget.storage),
+        builder: (_) => WorkoutScreen(
+          plan: selected.plan,
+          storage: widget.storage,
+          lastPerformances: lastPerformances,
+        ),
       ),
     );
     await _refresh();

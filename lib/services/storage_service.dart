@@ -178,6 +178,36 @@ class StorageService {
     return sessions;
   }
 
+  /// Letzte geschaffte Leistung je Übungsname (Progression V1): der
+  /// zuletzt abgeschlossene Satz aus der neuesten Session, die die Übung
+  /// enthält. Verknüpfung bewusst über den Namen – Übungen haben keine
+  /// planübergreifende ID.
+  Future<Map<String, ({SetLog log, DateTime date})>> loadLastPerformances(
+      Set<String> exerciseNames) async {
+    final sessions = await loadSessions(); // neueste zuerst
+    final result = <String, ({SetLog log, DateTime date})>{};
+    for (final session in sessions) {
+      for (final exercise in session.completedExercises) {
+        if (!exerciseNames.contains(exercise.exerciseName) ||
+            result.containsKey(exercise.exerciseName)) {
+          continue;
+        }
+        final completed = exercise.setsLogged
+            .where((s) => s.status == SetStatus.completed)
+            .toList();
+        if (completed.isEmpty) {
+          continue;
+        }
+        result[exercise.exerciseName] =
+            (log: completed.last, date: session.date);
+      }
+      if (result.length == exerciseNames.length) {
+        break;
+      }
+    }
+    return result;
+  }
+
   /// Exportiert die gesamte Historie als strukturierten JSON-String
   /// (Basis für flexiplan_backup.json).
   Future<String> exportHistoryJson() async {
