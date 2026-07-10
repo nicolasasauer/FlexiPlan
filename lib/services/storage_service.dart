@@ -29,6 +29,20 @@ class StorageService {
   /// blockiert aber nicht.
   static const int softPlanLimit = 20;
 
+  static const String _soundKey = 'flexiplan_sound_enabled';
+
+  /// Gemeinsamer Schalter für Timer-Töne, Haptik und Sprachansagen im
+  /// Workout (Default: an).
+  Future<bool> loadSoundEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_soundKey) ?? true;
+  }
+
+  Future<void> saveSoundEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_soundKey, enabled);
+  }
+
   // ---------------------------------------------------------------------
   // Plan-Bibliothek
   // ---------------------------------------------------------------------

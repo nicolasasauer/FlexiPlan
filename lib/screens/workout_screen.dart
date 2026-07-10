@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/workout_plan.dart';
 import '../models/workout_session.dart';
 import '../services/native_feedback.dart';
+import '../services/speech_service.dart';
 import '../services/storage_service.dart';
 import '../utils/uuid.dart';
 import 'summary_screen.dart';
@@ -29,6 +30,10 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   late final DateTime _startTime;
   late final List<List<SetLog>> _logs;
+  final SpeechService _speech = SpeechService();
+
+  /// Gemeinsamer Schalter für Töne, Haptik und Ansagen (persistiert).
+  bool _soundEnabled = true;
 
   int _exerciseIndex = 0;
   int _setNumber = 1;
@@ -58,25 +63,66 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     // Bildschirmsperre-Prävention (Lastenheft 3.1): Display bleibt während
     // des gesamten Workouts wach.
     NativeFeedback.keepScreenOn(true);
+    // Ton-Einstellung laden, erst danach die erste Übung ansagen –
+    // sonst spräche die Ansage, bevor der Schalter bekannt ist.
+    widget.storage.loadSoundEnabled().then((enabled) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _soundEnabled = enabled);
+      _announceExercise(first: true);
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _speech.stop();
     NativeFeedback.keepScreenOn(false);
     super.dispose();
+  }
+
+  /// Sprachansage der aktuellen Übung (Lastenheft 2.4), z. B.
+  /// "Nächste Übung: Kniebeugen, 3 Sätze à 15 Wiederholungen".
+  void _announceExercise({bool first = false}) {
+    if (!_soundEnabled) {
+      return;
+    }
+    final ex = _exercise;
+    final prefix = first ? 'Erste Übung' : 'Nächste Übung';
+    final String load;
+    if (ex.type == ExerciseType.time) {
+      load = '${ex.sets} Sätze à ${ex.durationSeconds} Sekunden';
+    } else {
+      final weight = !ex.bodyweight && ex.weightKg > 0
+          ? ' mit ${ex.weightKg % 1 == 0 ? ex.weightKg.toInt() : ex.weightKg} Kilo'
+          : '';
+      load = '${ex.sets} Sätze à ${ex.reps} Wiederholungen$weight';
+    }
+    _speech.speak('$prefix: ${ex.name}, $load.');
+  }
+
+  Future<void> _toggleSound() async {
+    setState(() => _soundEnabled = !_soundEnabled);
+    if (!_soundEnabled) {
+      _speech.stop();
+    }
+    await widget.storage.saveSoundEnabled(_soundEnabled);
   }
 
   /// Akustischer Countdown (Lastenheft 2.4): Tick + Haptik in den letzten
   /// 3 Sekunden eines laufenden Timers.
   void _signalCountdownTick() {
-    if (_secondsRemaining >= 1 && _secondsRemaining <= 3) {
+    if (_soundEnabled && _secondsRemaining >= 1 && _secondsRemaining <= 3) {
       NativeFeedback.tick();
       HapticFeedback.mediumImpact();
     }
   }
 
   void _signalTimerEnd() {
+    if (!_soundEnabled) {
+      return;
+    }
     NativeFeedback.end();
     HapticFeedback.heavyImpact();
   }
@@ -100,7 +146,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _phase = _Phase.timing;
       _secondsRemaining = _exercise.durationSeconds;
     });
-    NativeFeedback.start();
+    if (_soundEnabled) {
+      NativeFeedback.start();
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 1) {
         timer.cancel();
@@ -186,6 +234,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _advanceToNextSet() {
+    final exerciseChanges = _setNumber >= _exercise.sets;
     setState(() {
       if (_setNumber < _exercise.sets) {
         _setNumber += 1;
@@ -195,6 +244,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       }
       _setupCurrentSet();
     });
+    if (exerciseChanges) {
+      _announceExercise();
+    }
   }
 
   Future<void> _confirmSkipSet() async {
@@ -305,6 +357,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             'Übung ${_exerciseIndex + 1}/${widget.plan.exercises.length} · '
             'Satz $_setNumber/${ex.sets}',
           ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                _soundEnabled ? Icons.volume_up : Icons.volume_off,
+                size: 28,
+              ),
+              tooltip: _soundEnabled
+                  ? 'Töne & Ansagen aus'
+                  : 'Töne & Ansagen an',
+              onPressed: _toggleSound,
+            ),
+          ],
         ),
         body: SafeArea(
           child: Padding(
