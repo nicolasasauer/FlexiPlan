@@ -10,7 +10,7 @@
       "type": "reps",
       "sets": 3,
       "reps": 12,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {

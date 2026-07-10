@@ -38,9 +38,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Exakte Kopie von workouts/v_cut.json, eingebettet für den
-/// Copy-Paste-Import (TEST CASE 2) analog zum bestehenden Muster in
-/// test/plan_parser_test.dart.
+/// An workouts/v_cut.json angelehnter Testplan für den Copy-Paste-Import
+/// (TEST CASE 2). Bewusste Abweichung von der Vorlage: Übung 1 bleibt
+/// gewichtsfähig (weight_kg statt bodyweight), damit der ±2,5-kg-Stepper
+/// getestet wird; Übung 2 nutzt bodyweight und deckt damit den
+/// Log-Screen OHNE Gewichtseingabe ab.
 const String _vCutJsonContent = '''
 {
   "workout_title": "V-Cut Core Finisher",
@@ -60,11 +62,11 @@ const String _vCutJsonContent = '''
     {
       "id": 2,
       "name": "Russian Twists",
-      "description": "Im Sitzen den Oberkörper leicht nach hinten lehnen, Beine anwinkeln und den Oberkörper kontrolliert mit Gewicht von links nach rechts drehen.",
+      "description": "Im Sitzen den Oberkörper leicht nach hinten lehnen, Beine anwinkeln und den Oberkörper kontrolliert von links nach rechts drehen.",
       "type": "reps",
       "sets": 3,
       "reps": 20,
-      "weight_kg": 0,
+      "bodyweight": true,
       "rest_duration_seconds": 60
     },
     {
@@ -86,9 +88,9 @@ const String _adbPushedFilePath = '/storage/emulated/0/Download/Vcut.json';
 
 /// Test-Bridge für TEST CASE 1 (siehe Datei-Kommentar). Liest bevorzugt
 /// die real gepushte Datei; falls Android Scoped Storage den Direktzugriff
-/// aus dem App-Prozess heraus verweigert, wird auf eine identische
-/// eingebettete Kopie ausgewichen, damit die App-Validierungslogik
-/// dennoch geprüft werden kann.
+/// aus dem App-Prozess heraus verweigert, wird auf die eingebettete
+/// Testkopie ausgewichen, damit die App-Validierungslogik dennoch
+/// geprüft werden kann.
 class _PushedFileFilePicker extends FilePicker {
   @override
   Future<FilePickerResult?> pickFiles({

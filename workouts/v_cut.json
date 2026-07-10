@@ -10,17 +10,17 @@
 "type": "reps",
 "sets": 3,
 "reps": 12,
-"weight_kg": 0,
+"bodyweight": true,
 "rest_duration_seconds": 60
 },
 {
 "id": 2,
 "name": "Russian Twists",
-"description": "Im Sitzen den Oberkörper leicht nach hinten lehnen, Beine anwinkeln und den Oberkörper kontrolliert mit Gewicht von links nach rechts drehen.",
+"description": "Im Sitzen den Oberkörper leicht nach hinten lehnen, Beine anwinkeln und den Oberkörper kontrolliert von links nach rechts drehen.",
 "type": "reps",
 "sets": 3,
 "reps": 20,
-"weight_kg": 0,
+"bodyweight": true,
 "rest_duration_seconds": 60
 },
 {
