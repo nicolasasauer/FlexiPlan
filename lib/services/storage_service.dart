@@ -178,6 +178,39 @@ class StorageService {
     return sessions;
   }
 
+  // ---------------------------------------------------------------------
+  // Workout-Entwurf (App-Kill-Schutz)
+  // ---------------------------------------------------------------------
+
+  static const String _draftKey = 'flexiplan_workout_draft';
+
+  /// Persistiert den Zwischenstand eines laufenden Workouts, damit es
+  /// nach einem Prozess-Tod (Anruf, Speicherdruck) fortgesetzt werden
+  /// kann. Format siehe WorkoutScreen._persistDraft.
+  Future<void> saveWorkoutDraft(Map<String, dynamic> draft) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_draftKey, jsonEncode(draft));
+  }
+
+  Future<Map<String, dynamic>?> loadWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_draftKey);
+    if (raw == null) {
+      return null;
+    }
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } on Object {
+      await prefs.remove(_draftKey);
+      return null;
+    }
+  }
+
+  Future<void> clearWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftKey);
+  }
+
   /// Letzte geschaffte Leistung je Übungsname (Progression V1): der
   /// zuletzt abgeschlossene Satz aus der neuesten Session, die die Übung
   /// enthält. Verknüpfung bewusst über den Namen – Übungen haben keine

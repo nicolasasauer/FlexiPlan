@@ -130,6 +130,31 @@ void main() {
     });
   });
 
+  group('Workout-Entwurf (App-Kill-Schutz)', () {
+    test('Draft speichern, laden und löschen', () async {
+      final storage = StorageService();
+      expect(await storage.loadWorkoutDraft(), isNull);
+
+      await storage.saveWorkoutDraft(<String, dynamic>{
+        'start_time': '2026-07-06T10:00:00.000',
+        'exercise_index': 1,
+        'set_number': 2,
+        'logs': [
+          [buildSession().completedExercises.single.setsLogged.first.toJson()],
+          <Map<String, dynamic>>[],
+        ],
+      });
+
+      final draft = await storage.loadWorkoutDraft();
+      expect(draft, isNotNull);
+      expect(draft!['exercise_index'], 1);
+      expect(draft['set_number'], 2);
+
+      await storage.clearWorkoutDraft();
+      expect(await storage.loadWorkoutDraft(), isNull);
+    });
+  });
+
   group('Plan-Bibliothek', () {
     test('addPlan speichert und wählt aus, loadSelectedPlan liefert ihn',
         () async {

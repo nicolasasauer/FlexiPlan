@@ -36,6 +36,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showPlanList = false;
   bool _showExercises = false;
 
+  /// Fortsetzen-Dialog für unterbrochene Workouts nur einmal anbieten.
+  bool _draftPromptShown = false;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final plans = await widget.storage.loadPlans();
     final selected = await widget.storage.loadSelectedPlan();
     final sessions = await widget.storage.loadSessions();
+    final draft = await widget.storage.loadWorkoutDraft();
     if (!mounted) {
       return;
     }
@@ -58,6 +62,77 @@ class _HomeScreenState extends State<HomeScreen> {
         _showPlanList = false;
       }
     });
+    if (draft != null && !_draftPromptShown) {
+      _draftPromptShown = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _askResumeDraft(draft);
+        }
+      });
+    }
+  }
+
+  /// App-Kill-Schutz: bietet an, ein unterbrochenes Workout fortzusetzen.
+  Future<void> _askResumeDraft(Map<String, dynamic> draft) async {
+    WorkoutPlan plan;
+    int loggedSets;
+    try {
+      plan = WorkoutPlan.fromJson(draft['plan'] as Map<String, dynamic>);
+      loggedSets = (draft['logs'] as List<dynamic>)
+          .fold<int>(0, (sum, ex) => sum + (ex as List<dynamic>).length);
+    } on Object {
+      // Defekter Entwurf: still entsorgen.
+      await widget.storage.clearWorkoutDraft();
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    final resume = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Workout fortsetzen?'),
+        content: Text('„${plan.workoutTitle}" wurde unterbrochen '
+            '($loggedSets von ${plan.totalSets} Sätzen geloggt). '
+            'Möchtest du weitermachen?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Verwerfen',
+                style: TextStyle(fontSize: 18, color: Colors.redAccent)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child:
+                const Text('Fortsetzen', style: TextStyle(fontSize: 18)),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (resume != true) {
+      await widget.storage.clearWorkoutDraft();
+      return;
+    }
+    final lastPerformances = await widget.storage.loadLastPerformances(
+      plan.exercises.map((e) => e.name).toSet(),
+    );
+    if (!mounted) {
+      return;
+    }
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => WorkoutScreen(
+          plan: plan,
+          storage: widget.storage,
+          lastPerformances: lastPerformances,
+          resumeDraft: draft,
+        ),
+      ),
+    );
+    await _refresh();
   }
 
   Future<void> _openImport() async {

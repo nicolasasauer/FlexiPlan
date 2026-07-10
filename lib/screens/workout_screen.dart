@@ -23,6 +23,7 @@ class WorkoutScreen extends StatefulWidget {
     required this.plan,
     required this.storage,
     this.lastPerformances = const {},
+    this.resumeDraft,
   });
 
   final WorkoutPlan plan;
@@ -32,6 +33,10 @@ class WorkoutScreen extends StatefulWidget {
   /// Startwert-Vorschlag und "Zuletzt:"-Anzeige. Wird vom Aufrufer vor
   /// dem Start geladen, damit die Werte ab dem ersten Frame stimmen.
   final Map<String, ({SetLog log, DateTime date})> lastPerformances;
+
+  /// Zwischenstand eines unterbrochenen Workouts (App-Kill-Schutz);
+  /// null = normaler Neustart des Workouts.
+  final Map<String, dynamic>? resumeDraft;
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -67,8 +72,40 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   void initState() {
     super.initState();
-    _startTime = DateTime.now();
-    _logs = List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+    final draft = widget.resumeDraft;
+    if (draft != null) {
+      // Unterbrochenes Workout fortsetzen: Logs und Position aus dem
+      // Entwurf wiederherstellen (defensive Casts – bei defektem Draft
+      // greift der catch und startet normal).
+      DateTime start;
+      List<List<SetLog>> logs;
+      var exerciseIndex = 0;
+      var setNumber = 1;
+      try {
+        start = DateTime.parse(draft['start_time'] as String);
+        logs = [
+          for (final exLogs in draft['logs'] as List<dynamic>)
+            [
+              for (final raw in exLogs as List<dynamic>)
+                SetLog.fromJson(raw as Map<String, dynamic>)
+            ]
+        ];
+        exerciseIndex = draft['exercise_index'] as int;
+        setNumber = draft['set_number'] as int;
+      } on Object {
+        start = DateTime.now();
+        logs =
+            List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+      }
+      _startTime = start;
+      _logs = logs;
+      _exerciseIndex = exerciseIndex;
+      _setNumber = setNumber;
+    } else {
+      _startTime = DateTime.now();
+      _logs =
+          List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+    }
     _setupCurrentSet();
     // Bildschirmsperre-Prävention (Lastenheft 3.1): Display bleibt während
     // des gesamten Workouts wach.
@@ -236,6 +273,27 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   // Ablaufsteuerung
   // -----------------------------------------------------------------
 
+  /// Persistiert den Zwischenstand mit der Position des NÄCHSTEN Satzes,
+  /// damit ein Resume nach App-Kill nahtlos dort weitermacht – auch wenn
+  /// der Prozess während der Satzpause stirbt.
+  void _persistDraft() {
+    var nextExercise = _exerciseIndex;
+    var nextSet = _setNumber + 1;
+    if (nextSet > _exercise.sets) {
+      nextExercise += 1;
+      nextSet = 1;
+    }
+    widget.storage.saveWorkoutDraft(<String, dynamic>{
+      'start_time': _startTime.toIso8601String(),
+      'plan': widget.plan.toJson(),
+      'exercise_index': nextExercise,
+      'set_number': nextSet,
+      'logs': [
+        for (final exLogs in _logs) [for (final log in exLogs) log.toJson()]
+      ],
+    });
+  }
+
   void _logSet({required bool completed}) {
     final ex = _exercise;
     _logs[_exerciseIndex].add(
@@ -256,6 +314,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _finishWorkout();
       return;
     }
+    _persistDraft();
 
     // Rest-Timer nur nach bestätigten Sätzen; übersprungene Sätze führen
     // direkt zum nächsten Satz.
@@ -335,6 +394,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
 
     await widget.storage.addSession(session);
+    // Erst die Session sichern, dann den Entwurf entsorgen – so geht
+    // selbst bei einem Crash dazwischen nichts verloren.
+    await widget.storage.clearWorkoutDraft();
     if (!mounted) {
       return;
     }
@@ -365,6 +427,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      // Bewusster Abbruch: Entwurf verwerfen (dokumentiertes Verhalten,
+      // geloggte Sätze werden nicht gespeichert).
+      await widget.storage.clearWorkoutDraft();
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pop();
     }
   }
