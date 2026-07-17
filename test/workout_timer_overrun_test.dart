@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Verifiziert das Overrun-Verhalten des Belastungs-Timers: Nach dem
-/// regulären Ablauf zählt der Ist-Wert automatisch weiter, bis der Satz
-/// beendet oder der Wert manuell angepasst wird.
+/// Verifiziert die Referenzuhr nach regulärem Timer-Ablauf: Der
+/// Eingabewert bleibt stabil bei der Vorgabe, eine separate kleine Uhr
+/// führt den Timerstand weiter, bis der Satz beendet wird.
 ///
-/// Wichtig: Während der Overrun-Zähler läuft, niemals pumpAndSettle
+/// Wichtig: Während die Referenzuhr läuft, niemals pumpAndSettle
 /// verwenden (der periodische Timer erzeugt in der Fake-Zeit endlos
 /// neue Frames) – stattdessen gezielt pump(1s)-Schritte.
 void main() {
@@ -28,8 +28,8 @@ void main() {
       });
 
   testWidgets(
-      'Ist-Wert zählt nach Timer-Ablauf weiter, stoppt bei manuellem '
-      'Eingriff und friert beim Beenden ein', (tester) async {
+      'Referenzuhr zählt nach Timer-Ablauf weiter, Eingabewert bleibt '
+      'bei der Vorgabe stehen', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
 
     await tester.pumpWidget(MaterialApp(
@@ -47,31 +47,36 @@ void main() {
     expect(find.text('Satz beendet'), findsOneWidget,
         reason: 'Nach Ablauf wechselt der Screen automatisch zum Loggen.');
     expect(find.text('5'), findsOneWidget,
-        reason: 'Ist-Wert startet bei der Vorgabe (5 Sekunden).');
+        reason: 'Eingabewert steht auf der Vorgabe (5 Sekunden).');
+    expect(find.text('Läuft weiter: 5 Sek.'), findsOneWidget,
+        reason: 'Die Referenzuhr startet beim Timerstand.');
 
-    // Overrun: Wert zählt sekündlich weiter.
+    // Referenzuhr zählt weiter – der Eingabewert bleibt unangetastet.
     for (var i = 0; i < 3; i++) {
       await tester.pump(const Duration(seconds: 1));
     }
-    expect(find.text('8'), findsOneWidget,
-        reason: 'Drei Sekunden nach Ablauf muss der Ist-Wert 8 zeigen.');
+    expect(find.text('Läuft weiter: 8 Sek.'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget,
+        reason: 'Der Eingabewert darf sich nicht von selbst verändern.');
 
-    // Manueller Eingriff stoppt das automatische Weiterzählen.
-    await tester.tap(find.byIcon(Icons.remove));
+    // Manueller Eingriff verändert nur den Eingabewert; die Referenzuhr
+    // läuft davon unabhängig weiter.
+    await tester.tap(find.byIcon(Icons.add));
     await tester.pump();
-    expect(find.text('3'), findsOneWidget);
+    expect(find.text('10'), findsOneWidget);
     await tester.pump(const Duration(seconds: 2));
-    expect(find.text('3'), findsOneWidget,
-        reason: 'Nach manuellem -5 darf nichts mehr automatisch ticken.');
+    expect(find.text('Läuft weiter: 10 Sek.'), findsOneWidget);
+    expect(find.text('10'), findsNWidgets(1),
+        reason: 'Eingabewert bleibt bei 10, nur die Uhr tickt.');
 
-    // Beenden friert den Wert ein und loggt ihn.
+    // Beenden loggt den Eingabewert; die Uhr verschwindet.
     await tester.tap(find.text('Satz beendet'));
     await tester.pumpAndSettle();
     expect(find.text('Zusammenfassung'), findsOneWidget);
-    expect(find.text('Satz 1: 3 Sek.'), findsOneWidget);
+    expect(find.text('Satz 1: 10 Sek.'), findsOneWidget);
   });
 
-  testWidgets('"Satz vorzeitig beenden" startet keinen Overrun-Zähler',
+  testWidgets('"Satz vorzeitig beenden" zeigt keine Referenzuhr',
       (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
 
@@ -88,8 +93,9 @@ void main() {
     await tester.pump();
     expect(find.text('2'), findsOneWidget,
         reason: 'Verstrichene Zeit (2 Sek.) wird übernommen.');
+    expect(find.textContaining('Läuft weiter'), findsNothing,
+        reason: 'Beim manuellen Stop ist der Wert exakt – keine Uhr.');
 
-    // Kein automatisches Weiterzählen nach manuellem Stop.
     await tester.pump(const Duration(seconds: 3));
     expect(find.text('2'), findsOneWidget);
   });

@@ -62,10 +62,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   int _secondsRemaining = 0;
   Timer? _timer;
 
-  /// Zählt den Ist-Wert nach regulärem Ablauf des Belastungs-Timers
-  /// sekündlich weiter (wer die Übung länger hält, liest die echte Zeit
-  /// einfach ab, statt sie im Kopf zu addieren).
+  /// Referenzuhr nach regulärem Ablauf des Belastungs-Timers: Sie führt
+  /// den Timerstand sichtbar weiter (5 → 6 → 7 …), während der
+  /// Eingabewert stabil bei der Vorgabe stehen bleibt. Wer die Übung
+  /// länger hält, liest die tatsächliche Zeit einfach ab und stellt den
+  /// Ist-Wert darauf ein – ohne Kopfrechnen. null = keine Uhr sichtbar.
   Timer? _overrunTimer;
+  int? _overrunReferenceSeconds;
   bool _finishing = false;
 
   Exercise get _exercise => widget.plan.exercises[_exerciseIndex];
@@ -135,19 +138,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     super.dispose();
   }
 
-  /// Startet das automatische Weiterzählen des Ist-Werts nach regulärem
-  /// Timer-Ablauf. Stoppt beim Beenden/Überspringen des Satzes oder
-  /// sobald der Nutzer den Wert manuell anfasst.
-  void _startOverrunCounter() {
+  /// Startet die Referenzuhr beim Vorgabewert. Sie läuft rein
+  /// informativ bis zum Beenden/Überspringen des Satzes weiter und
+  /// verändert den Eingabewert nie von selbst.
+  void _startOverrunReference() {
     _overrunTimer?.cancel();
+    _overrunReferenceSeconds = _exercise.durationSeconds;
     _overrunTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _durationValue += 1);
+      setState(
+          () => _overrunReferenceSeconds = (_overrunReferenceSeconds ?? 0) + 1);
     });
   }
 
-  void _stopOverrunCounter() {
+  void _stopOverrunReference() {
     _overrunTimer?.cancel();
     _overrunTimer = null;
+    _overrunReferenceSeconds = null;
   }
 
   /// Sprachansage der aktuellen Übung (Lastenheft 2.4), z. B.
@@ -249,10 +255,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           _phase = _Phase.logging;
         });
         _signalTimerEnd();
-        // Wer nach dem Signal weitermacht, sieht die echte Zeit live im
-        // Ist-Wert weiterlaufen (nur beim regulären Ablauf – nach
-        // "Satz vorzeitig beenden" steht der Wert bereits exakt fest).
-        _startOverrunCounter();
+        // Wer nach dem Signal weitermacht, sieht die echte Zeit auf der
+        // Referenzuhr weiterlaufen; der Eingabewert bleibt stabil bei
+        // der Vorgabe (nur beim regulären Ablauf – nach "Satz vorzeitig
+        // beenden" steht der Wert bereits exakt fest).
+        _startOverrunReference();
       } else {
         setState(() => _secondsRemaining -= 1);
         _signalCountdownTick();
@@ -320,8 +327,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _logSet({required bool completed}) {
-    // Ab jetzt ist der Ist-Wert final.
-    _stopOverrunCounter();
+    // Ab jetzt ist der Ist-Wert final, die Referenzuhr verschwindet.
+    _stopOverrunReference();
     final ex = _exercise;
     _logs[_exerciseIndex].add(
       SetLog(
@@ -709,23 +716,35 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
               onIncrement: () => setState(() => _weightValue += 2.5),
             ),
           ],
-        ] else
+        ] else ...[
+          // Referenzuhr: führt nach regulärem Timer-Ablauf den Stand
+          // sichtbar weiter, damit die tatsächlich gehaltene Zeit ohne
+          // Kopfrechnen abgelesen und unten eingestellt werden kann.
+          if (_overrunReferenceSeconds != null) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.timer, size: 22,
+                    color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Läuft weiter: $_overrunReferenceSeconds Sek.',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: theme.colorScheme.primary),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+          ],
           _ValueStepper(
             label: 'Sekunden (Ist)',
             value: '$_durationValue',
-            // Manueller Eingriff übernimmt die Kontrolle: Das
-            // automatische Weiterzählen nach Timer-Ablauf stoppt.
             onDecrement: _durationValue >= 5
-                ? () {
-                    _stopOverrunCounter();
-                    setState(() => _durationValue -= 5);
-                  }
+                ? () => setState(() => _durationValue -= 5)
                 : null,
-            onIncrement: () {
-              _stopOverrunCounter();
-              setState(() => _durationValue += 5);
-            },
+            onIncrement: () => setState(() => _durationValue += 5),
           ),
+        ],
         const Spacer(),
         ElevatedButton.icon(
           onPressed: () => _logSet(completed: true),
