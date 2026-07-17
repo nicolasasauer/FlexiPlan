@@ -61,6 +61,11 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   int _secondsRemaining = 0;
   Timer? _timer;
+
+  /// Zählt den Ist-Wert nach regulärem Ablauf des Belastungs-Timers
+  /// sekündlich weiter (wer die Übung länger hält, liest die echte Zeit
+  /// einfach ab, statt sie im Kopf zu addieren).
+  Timer? _overrunTimer;
   bool _finishing = false;
 
   Exercise get _exercise => widget.plan.exercises[_exerciseIndex];
@@ -124,9 +129,25 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _overrunTimer?.cancel();
     _speech.stop();
     NativeFeedback.keepScreenOn(false);
     super.dispose();
+  }
+
+  /// Startet das automatische Weiterzählen des Ist-Werts nach regulärem
+  /// Timer-Ablauf. Stoppt beim Beenden/Überspringen des Satzes oder
+  /// sobald der Nutzer den Wert manuell anfasst.
+  void _startOverrunCounter() {
+    _overrunTimer?.cancel();
+    _overrunTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() => _durationValue += 1);
+    });
+  }
+
+  void _stopOverrunCounter() {
+    _overrunTimer?.cancel();
+    _overrunTimer = null;
   }
 
   /// Sprachansage der aktuellen Übung (Lastenheft 2.4), z. B.
@@ -228,6 +249,10 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           _phase = _Phase.logging;
         });
         _signalTimerEnd();
+        // Wer nach dem Signal weitermacht, sieht die echte Zeit live im
+        // Ist-Wert weiterlaufen (nur beim regulären Ablauf – nach
+        // "Satz vorzeitig beenden" steht der Wert bereits exakt fest).
+        _startOverrunCounter();
       } else {
         setState(() => _secondsRemaining -= 1);
         _signalCountdownTick();
@@ -295,6 +320,8 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _logSet({required bool completed}) {
+    // Ab jetzt ist der Ist-Wert final.
+    _stopOverrunCounter();
     final ex = _exercise;
     _logs[_exerciseIndex].add(
       SetLog(
@@ -686,10 +713,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           _ValueStepper(
             label: 'Sekunden (Ist)',
             value: '$_durationValue',
+            // Manueller Eingriff übernimmt die Kontrolle: Das
+            // automatische Weiterzählen nach Timer-Ablauf stoppt.
             onDecrement: _durationValue >= 5
-                ? () => setState(() => _durationValue -= 5)
+                ? () {
+                    _stopOverrunCounter();
+                    setState(() => _durationValue -= 5);
+                  }
                 : null,
-            onIncrement: () => setState(() => _durationValue += 5),
+            onIncrement: () {
+              _stopOverrunCounter();
+              setState(() => _durationValue += 5);
+            },
           ),
         const Spacer(),
         ElevatedButton.icon(
