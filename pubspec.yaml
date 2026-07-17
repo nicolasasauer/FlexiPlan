@@ -1,7 +1,7 @@
 name: flexiplan
 description: Minimalistischer, lokaler Workout-Begleiter und digitales Trainingstagebuch.
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.4.0+4
 
 # Benötigt Flutter >= 3.29 (CardThemeData/DialogThemeData, PopScope).
 environment:
@@ -13,6 +13,7 @@ dependencies:
   shared_preferences: ^2.3.0
   url_launcher: ^6.3.0
   flutter_local_notifications: ^19.0.0
+  flutter_tts: ^4.2.0
   flutter_timezone: ^4.0.0
   timezone: ^0.10.0
   # 10.x statt 11.x: file_picker 11 setzt unter AGP 9 Built-in Kotlin

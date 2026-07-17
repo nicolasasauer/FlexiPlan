@@ -87,6 +87,118 @@ void main() {
     expect(migrated['workout_title'], legacy['workout_title']);
   });
 
+  group('Progression: loadLastPerformances', () {
+    test('liefert den letzten abgeschlossenen Satz der neuesten Session '
+        'und ignoriert übersprungene Sätze', () async {
+      final storage = StorageService();
+      // Ältere Session (buildSession: 2026-07-05, letzter completed Satz
+      // = 10 Wdh. à 20 kg, danach ein skipped Satz).
+      await storage.addSession(buildSession());
+      // Neuere Session mit besserer Leistung.
+      await storage.addSession(WorkoutSession(
+        dataVersion: StorageService.currentDataVersion,
+        sessionId: 'neuere-session',
+        date: DateTime.utc(2026, 7, 6, 18),
+        workoutTitle: 'Ganzkörper Heimtraining',
+        durationMinutes: 40,
+        completedExercises: const [
+          CompletedExercise(
+            exerciseName: 'Liegestütze',
+            setsLogged: [
+              SetLog(
+                  setNumber: 1,
+                  status: SetStatus.completed,
+                  repsActual: 14,
+                  weightActualKg: 22.5),
+              SetLog(
+                  setNumber: 2,
+                  status: SetStatus.skipped,
+                  repsActual: 0,
+                  weightActualKg: 0),
+            ],
+          ),
+        ],
+      ));
+
+      final result =
+          await storage.loadLastPerformances({'Liegestütze', 'Unbekannt'});
+      expect(result.containsKey('Unbekannt'), isFalse);
+      final last = result['Liegestütze']!;
+      expect(last.log.repsActual, 14);
+      expect(last.log.weightActualKg, 22.5);
+      expect(last.date, DateTime.utc(2026, 7, 6, 18));
+    });
+  });
+
+  group('Historie: Import & Löschen', () {
+    test('importHistoryJson dedupliziert per session_id', () async {
+      final storage = StorageService();
+      await storage.addSession(buildSession());
+
+      final backup = await storage.exportHistoryJson();
+      // Erneutes Einspielen des eigenen Backups darf nichts duplizieren.
+      final first = await storage.importHistoryJson(backup);
+      expect(first.added, 0);
+      expect(first.skipped, 1);
+
+      // Backup mit einer neuen Session wird übernommen.
+      final extra = buildSession().toJson()
+        ..['session_id'] = 'neue-session-id';
+      final second = await storage.importHistoryJson(jsonEncode({
+        'data_version': StorageService.currentDataVersion,
+        'sessions': [extra],
+      }));
+      expect(second.added, 1);
+      expect((await storage.loadSessions()).length, 2);
+    });
+
+    test('importHistoryJson lehnt fremde Dateien ab', () async {
+      final storage = StorageService();
+      expect(() => storage.importHistoryJson('{"foo": 1}'),
+          throwsA(isA<FormatException>()));
+      expect(() => storage.importHistoryJson('kein json'),
+          throwsA(isA<FormatException>()));
+    });
+
+    test('deleteSession entfernt genau eine Session', () async {
+      final storage = StorageService();
+      await storage.addSession(buildSession());
+      final other = WorkoutSession.fromJson(
+          buildSession().toJson()..['session_id'] = 'andere-id');
+      await storage.addSession(other);
+
+      await storage.deleteSession('andere-id');
+      final remaining = await storage.loadSessions();
+      expect(remaining.single.sessionId,
+          '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d');
+    });
+  });
+
+  group('Workout-Entwurf (App-Kill-Schutz)', () {
+    test('Draft speichern, laden und löschen', () async {
+      final storage = StorageService();
+      expect(await storage.loadWorkoutDraft(), isNull);
+
+      await storage.saveWorkoutDraft(<String, dynamic>{
+        'start_time': '2026-07-06T10:00:00.000',
+        'exercise_index': 1,
+        'set_number': 2,
+        'logs': [
+          [buildSession().completedExercises.single.setsLogged.first.toJson()],
+          <Map<String, dynamic>>[],
+        ],
+      });
+
+      final draft = await storage.loadWorkoutDraft();
+      expect(draft, isNotNull);
+      expect(draft!['exercise_index'], 1);
+      expect(draft['set_number'], 2);
+
+      await storage.clearWorkoutDraft();
+      expect(await storage.loadWorkoutDraft(), isNull);
+    });
+  });
+
   group('Plan-Bibliothek', () {
     test('addPlan speichert und wählt aus, loadSelectedPlan liefert ihn',
         () async {

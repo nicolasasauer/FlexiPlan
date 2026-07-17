@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../models/workout_plan.dart';
 import '../models/workout_session.dart';
 import '../services/native_feedback.dart';
+import '../services/speech_service.dart';
 import '../services/storage_service.dart';
 import '../utils/uuid.dart';
 import 'summary_screen.dart';
@@ -17,10 +18,25 @@ enum _Phase { ready, timing, logging, resting }
 /// großen +/- Tasten, "Satz überspringen" mit Sicherheitsabfrage sowie
 /// Belastungs- und Rest-Timer.
 class WorkoutScreen extends StatefulWidget {
-  const WorkoutScreen({super.key, required this.plan, required this.storage});
+  const WorkoutScreen({
+    super.key,
+    required this.plan,
+    required this.storage,
+    this.lastPerformances = const {},
+    this.resumeDraft,
+  });
 
   final WorkoutPlan plan;
   final StorageService storage;
+
+  /// Letzte geschaffte Leistung je Übungsname (Progression V1): dient als
+  /// Startwert-Vorschlag und "Zuletzt:"-Anzeige. Wird vom Aufrufer vor
+  /// dem Start geladen, damit die Werte ab dem ersten Frame stimmen.
+  final Map<String, ({SetLog log, DateTime date})> lastPerformances;
+
+  /// Zwischenstand eines unterbrochenen Workouts (App-Kill-Schutz);
+  /// null = normaler Neustart des Workouts.
+  final Map<String, dynamic>? resumeDraft;
 
   @override
   State<WorkoutScreen> createState() => _WorkoutScreenState();
@@ -29,6 +45,10 @@ class WorkoutScreen extends StatefulWidget {
 class _WorkoutScreenState extends State<WorkoutScreen> {
   late final DateTime _startTime;
   late final List<List<SetLog>> _logs;
+  final SpeechService _speech = SpeechService();
+
+  /// Gemeinsamer Schalter für Töne, Haptik und Ansagen (persistiert).
+  bool _soundEnabled = true;
 
   int _exerciseIndex = 0;
   int _setNumber = 1;
@@ -52,39 +72,135 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   @override
   void initState() {
     super.initState();
-    _startTime = DateTime.now();
-    _logs = List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+    final draft = widget.resumeDraft;
+    if (draft != null) {
+      // Unterbrochenes Workout fortsetzen: Logs und Position aus dem
+      // Entwurf wiederherstellen (defensive Casts – bei defektem Draft
+      // greift der catch und startet normal).
+      DateTime start;
+      List<List<SetLog>> logs;
+      var exerciseIndex = 0;
+      var setNumber = 1;
+      try {
+        start = DateTime.parse(draft['start_time'] as String);
+        logs = [
+          for (final exLogs in draft['logs'] as List<dynamic>)
+            [
+              for (final raw in exLogs as List<dynamic>)
+                SetLog.fromJson(raw as Map<String, dynamic>)
+            ]
+        ];
+        exerciseIndex = draft['exercise_index'] as int;
+        setNumber = draft['set_number'] as int;
+      } on Object {
+        start = DateTime.now();
+        logs =
+            List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+      }
+      _startTime = start;
+      _logs = logs;
+      _exerciseIndex = exerciseIndex;
+      _setNumber = setNumber;
+    } else {
+      _startTime = DateTime.now();
+      _logs =
+          List.generate(widget.plan.exercises.length, (_) => <SetLog>[]);
+    }
     _setupCurrentSet();
     // Bildschirmsperre-Prävention (Lastenheft 3.1): Display bleibt während
     // des gesamten Workouts wach.
     NativeFeedback.keepScreenOn(true);
+    // Ton-Einstellung laden, erst danach die erste Übung ansagen –
+    // sonst spräche die Ansage, bevor der Schalter bekannt ist.
+    widget.storage.loadSoundEnabled().then((enabled) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _soundEnabled = enabled);
+      _announceExercise(first: true);
+    });
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _speech.stop();
     NativeFeedback.keepScreenOn(false);
     super.dispose();
+  }
+
+  /// Sprachansage der aktuellen Übung (Lastenheft 2.4), z. B.
+  /// "Nächste Übung: Kniebeugen, 3 Sätze à 15 Wiederholungen".
+  void _announceExercise({bool first = false}) {
+    if (!_soundEnabled) {
+      return;
+    }
+    final ex = _exercise;
+    final prefix = first ? 'Erste Übung' : 'Nächste Übung';
+    final String load;
+    if (ex.type == ExerciseType.time) {
+      load = '${ex.sets} Sätze à ${ex.durationSeconds} Sekunden';
+    } else {
+      final weight = !ex.bodyweight && ex.weightKg > 0
+          ? ' mit ${ex.weightKg % 1 == 0 ? ex.weightKg.toInt() : ex.weightKg} Kilo'
+          : '';
+      load = '${ex.sets} Sätze à ${ex.reps} Wiederholungen$weight';
+    }
+    _speech.speak('$prefix: ${ex.name}, $load.');
+  }
+
+  Future<void> _toggleSound() async {
+    setState(() => _soundEnabled = !_soundEnabled);
+    if (!_soundEnabled) {
+      _speech.stop();
+    }
+    await widget.storage.saveSoundEnabled(_soundEnabled);
   }
 
   /// Akustischer Countdown (Lastenheft 2.4): Tick + Haptik in den letzten
   /// 3 Sekunden eines laufenden Timers.
   void _signalCountdownTick() {
-    if (_secondsRemaining >= 1 && _secondsRemaining <= 3) {
+    if (_soundEnabled && _secondsRemaining >= 1 && _secondsRemaining <= 3) {
       NativeFeedback.tick();
       HapticFeedback.mediumImpact();
     }
   }
 
   void _signalTimerEnd() {
+    if (!_soundEnabled) {
+      return;
+    }
     NativeFeedback.end();
     HapticFeedback.heavyImpact();
   }
 
+  /// Letzte Leistung dieser Übung, sofern sie zum Übungstyp passt
+  /// (Reps-Übungen ignorieren zeitbasierte Alt-Sätze und umgekehrt).
+  ({SetLog log, DateTime date})? get _lastPerformance {
+    final last = widget.lastPerformances[_exercise.name];
+    if (last == null) {
+      return null;
+    }
+    final isTimeLog = last.log.durationActualSeconds != null;
+    final matchesType =
+        (_exercise.type == ExerciseType.time) == isTimeLog;
+    return matchesType ? last : null;
+  }
+
   void _setupCurrentSet() {
     final ex = _exercise;
-    _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
-    _weightValue = ex.bodyweight ? 0 : ex.weightKg;
+    final last = _lastPerformance;
+    // Progression V1: Die zuletzt geschaffte Leistung ist der neue
+    // Startwert-Vorschlag; ohne Historie gilt die Plan-Vorgabe. Die
+    // Timer-Dauer zeitbasierter Übungen bleibt bewusst die Plan-Vorgabe
+    // (ein früher abgebrochener Satz soll das Ziel nicht senken).
+    if (ex.type == ExerciseType.reps && last != null) {
+      _repsValue = last.log.repsActual > 0 ? last.log.repsActual : ex.reps;
+      _weightValue = ex.bodyweight ? 0 : last.log.weightActualKg;
+    } else {
+      _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
+      _weightValue = ex.bodyweight ? 0 : ex.weightKg;
+    }
     _durationValue = ex.type == ExerciseType.time ? ex.durationSeconds : 0;
     _phase =
         ex.type == ExerciseType.time ? _Phase.ready : _Phase.logging;
@@ -100,7 +216,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _phase = _Phase.timing;
       _secondsRemaining = _exercise.durationSeconds;
     });
-    NativeFeedback.start();
+    if (_soundEnabled) {
+      NativeFeedback.start();
+    }
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining <= 1) {
         timer.cancel();
@@ -155,6 +273,27 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   // Ablaufsteuerung
   // -----------------------------------------------------------------
 
+  /// Persistiert den Zwischenstand mit der Position des NÄCHSTEN Satzes,
+  /// damit ein Resume nach App-Kill nahtlos dort weitermacht – auch wenn
+  /// der Prozess während der Satzpause stirbt.
+  void _persistDraft() {
+    var nextExercise = _exerciseIndex;
+    var nextSet = _setNumber + 1;
+    if (nextSet > _exercise.sets) {
+      nextExercise += 1;
+      nextSet = 1;
+    }
+    widget.storage.saveWorkoutDraft(<String, dynamic>{
+      'start_time': _startTime.toIso8601String(),
+      'plan': widget.plan.toJson(),
+      'exercise_index': nextExercise,
+      'set_number': nextSet,
+      'logs': [
+        for (final exLogs in _logs) [for (final log in exLogs) log.toJson()]
+      ],
+    });
+  }
+
   void _logSet({required bool completed}) {
     final ex = _exercise;
     _logs[_exerciseIndex].add(
@@ -175,6 +314,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       _finishWorkout();
       return;
     }
+    _persistDraft();
 
     // Rest-Timer nur nach bestätigten Sätzen; übersprungene Sätze führen
     // direkt zum nächsten Satz.
@@ -186,6 +326,7 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   }
 
   void _advanceToNextSet() {
+    final exerciseChanges = _setNumber >= _exercise.sets;
     setState(() {
       if (_setNumber < _exercise.sets) {
         _setNumber += 1;
@@ -195,6 +336,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       }
       _setupCurrentSet();
     });
+    if (exerciseChanges) {
+      _announceExercise();
+    }
   }
 
   Future<void> _confirmSkipSet() async {
@@ -250,6 +394,9 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
 
     await widget.storage.addSession(session);
+    // Erst die Session sichern, dann den Entwurf entsorgen – so geht
+    // selbst bei einem Crash dazwischen nichts verloren.
+    await widget.storage.clearWorkoutDraft();
     if (!mounted) {
       return;
     }
@@ -280,6 +427,12 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
       ),
     );
     if (confirmed == true && mounted) {
+      // Bewusster Abbruch: Entwurf verwerfen (dokumentiertes Verhalten,
+      // geloggte Sätze werden nicht gespeichert).
+      await widget.storage.clearWorkoutDraft();
+      if (!mounted) {
+        return;
+      }
       Navigator.of(context).pop();
     }
   }
@@ -305,6 +458,18 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             'Übung ${_exerciseIndex + 1}/${widget.plan.exercises.length} · '
             'Satz $_setNumber/${ex.sets}',
           ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                _soundEnabled ? Icons.volume_up : Icons.volume_off,
+                size: 28,
+              ),
+              tooltip: _soundEnabled
+                  ? 'Töne & Ansagen aus'
+                  : 'Töne & Ansagen an',
+              onPressed: _toggleSound,
+            ),
+          ],
         ),
         body: SafeArea(
           child: Padding(
@@ -325,7 +490,22 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
     );
   }
 
+  String _formatLastPerformance(({SetLog log, DateTime date}) last) {
+    final local = last.date.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final date = '${two(local.day)}.${two(local.month)}.';
+    final log = last.log;
+    if (log.durationActualSeconds != null) {
+      return 'Zuletzt: ${log.durationActualSeconds} Sek. ($date)';
+    }
+    final weight = log.weightActualKg > 0
+        ? ' à ${log.weightActualKg.toStringAsFixed(1)} kg'
+        : '';
+    return 'Zuletzt: ${log.repsActual} Wdh.$weight ($date)';
+  }
+
   Widget _buildHeader(ThemeData theme, Exercise ex) {
+    final last = _lastPerformance;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -343,6 +523,14 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           style: theme.textTheme.titleMedium
               ?.copyWith(color: theme.colorScheme.primary),
         ),
+        if (last != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            _formatLastPerformance(last),
+            style: theme.textTheme.titleMedium
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
       ],
     );
   }
@@ -438,10 +626,26 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 16),
-        OutlinedButton.icon(
-          onPressed: _skipRest,
-          icon: const Icon(Icons.skip_next, size: 28),
-          label: const Text('Pause überspringen'),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () =>
+                    setState(() => _secondsRemaining += 30),
+                icon: const Icon(Icons.more_time, size: 28),
+                label: const Text('+30 Sek.'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              flex: 2,
+              child: OutlinedButton.icon(
+                onPressed: _skipRest,
+                icon: const Icon(Icons.skip_next, size: 28),
+                label: const Text('Pause überspringen'),
+              ),
+            ),
+          ],
         ),
       ],
     );

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flexiplan/models/workout_plan.dart';
 import 'package:flexiplan/services/plan_parser.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,6 +32,13 @@ void main() {
       for (final ex in plan.exercises) {
         expect(ex.description.trim(), isNotEmpty,
             reason: '${file.path}: Übung "${ex.name}" ohne Beschreibung.');
+        if (ex.type == ExerciseType.reps && !ex.bodyweight) {
+          expect(ex.weightKg, isNot(0),
+              reason: '${file.path}: Übung "${ex.name}" nutzt weight_kg: 0. '
+                  'Reine Eigengewichtsübungen sollen bodyweight: true setzen; '
+                  'gewichtete Vorlagen sollen ein sinnvolles Startgewicht '
+                  'enthalten.');
+        }
       }
     });
   }

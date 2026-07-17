@@ -29,6 +29,20 @@ class StorageService {
   /// blockiert aber nicht.
   static const int softPlanLimit = 20;
 
+  static const String _soundKey = 'flexiplan_sound_enabled';
+
+  /// Gemeinsamer Schalter für Timer-Töne, Haptik und Sprachansagen im
+  /// Workout (Default: an).
+  Future<bool> loadSoundEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_soundKey) ?? true;
+  }
+
+  Future<void> saveSoundEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_soundKey, enabled);
+  }
+
   // ---------------------------------------------------------------------
   // Plan-Bibliothek
   // ---------------------------------------------------------------------
@@ -164,6 +178,69 @@ class StorageService {
     return sessions;
   }
 
+  // ---------------------------------------------------------------------
+  // Workout-Entwurf (App-Kill-Schutz)
+  // ---------------------------------------------------------------------
+
+  static const String _draftKey = 'flexiplan_workout_draft';
+
+  /// Persistiert den Zwischenstand eines laufenden Workouts, damit es
+  /// nach einem Prozess-Tod (Anruf, Speicherdruck) fortgesetzt werden
+  /// kann. Format siehe WorkoutScreen._persistDraft.
+  Future<void> saveWorkoutDraft(Map<String, dynamic> draft) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_draftKey, jsonEncode(draft));
+  }
+
+  Future<Map<String, dynamic>?> loadWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_draftKey);
+    if (raw == null) {
+      return null;
+    }
+    try {
+      return jsonDecode(raw) as Map<String, dynamic>;
+    } on Object {
+      await prefs.remove(_draftKey);
+      return null;
+    }
+  }
+
+  Future<void> clearWorkoutDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftKey);
+  }
+
+  /// Letzte geschaffte Leistung je Übungsname (Progression V1): der
+  /// zuletzt abgeschlossene Satz aus der neuesten Session, die die Übung
+  /// enthält. Verknüpfung bewusst über den Namen – Übungen haben keine
+  /// planübergreifende ID.
+  Future<Map<String, ({SetLog log, DateTime date})>> loadLastPerformances(
+      Set<String> exerciseNames) async {
+    final sessions = await loadSessions(); // neueste zuerst
+    final result = <String, ({SetLog log, DateTime date})>{};
+    for (final session in sessions) {
+      for (final exercise in session.completedExercises) {
+        if (!exerciseNames.contains(exercise.exerciseName) ||
+            result.containsKey(exercise.exerciseName)) {
+          continue;
+        }
+        final completed = exercise.setsLogged
+            .where((s) => s.status == SetStatus.completed)
+            .toList();
+        if (completed.isEmpty) {
+          continue;
+        }
+        result[exercise.exerciseName] =
+            (log: completed.last, date: session.date);
+      }
+      if (result.length == exerciseNames.length) {
+        break;
+      }
+    }
+    return result;
+  }
+
   /// Exportiert die gesamte Historie als strukturierten JSON-String
   /// (Basis für flexiplan_backup.json).
   Future<String> exportHistoryJson() async {
@@ -174,6 +251,63 @@ class StorageService {
       'sessions': sessions.map((s) => s.toJson()).toList(),
     };
     return const JsonEncoder.withIndent('  ').convert(payload);
+  }
+
+  /// Entfernt eine einzelne Session dauerhaft aus der Historie –
+  /// ausschließlich auf ausdrücklichen Nutzerwunsch (Fehleingaben).
+  Future<void> deleteSession(String sessionId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_sessionsKey) ?? <String>[];
+    list.removeWhere((raw) {
+      try {
+        return (jsonDecode(raw) as Map<String, dynamic>)['session_id'] ==
+            sessionId;
+      } on Object {
+        return false;
+      }
+    });
+    await prefs.setStringList(_sessionsKey, list);
+  }
+
+  /// Importiert Sessions aus einem Backup (Format von
+  /// [exportHistoryJson]). Bereits vorhandene session_ids und defekte
+  /// Einträge werden übersprungen – der Import ist damit beliebig oft
+  /// wiederholbar, ohne Duplikate zu erzeugen.
+  Future<({int added, int skipped})> importHistoryJson(String source) async {
+    final dynamic decoded;
+    try {
+      decoded = jsonDecode(source);
+    } on FormatException {
+      throw const FormatException('Datei enthält kein gültiges JSON.');
+    }
+    if (decoded is! Map<String, dynamic> || decoded['sessions'] is! List) {
+      throw const FormatException(
+          'Keine gültige FlexiPlan-Backup-Datei (Feld "sessions" fehlt).');
+    }
+    final existingIds =
+        (await loadSessions()).map((s) => s.sessionId).toSet();
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_sessionsKey) ?? <String>[];
+    var added = 0;
+    var skipped = 0;
+    for (final raw in decoded['sessions'] as List<dynamic>) {
+      try {
+        final map =
+            migrateSession(Map<String, dynamic>.from(raw as Map));
+        final session = WorkoutSession.fromJson(map);
+        if (existingIds.contains(session.sessionId)) {
+          skipped++;
+          continue;
+        }
+        existingIds.add(session.sessionId);
+        list.add(jsonEncode(session.toJson()));
+        added++;
+      } on Object {
+        skipped++;
+      }
+    }
+    await prefs.setStringList(_sessionsKey, list);
+    return (added: added, skipped: skipped);
   }
 
   // ---------------------------------------------------------------------
