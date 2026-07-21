@@ -75,22 +75,19 @@ void main() {
     await tester.pumpWidget(const FlexiPlanApp());
     await tester.pumpAndSettle();
 
-    // --- Import mit validierter Vorschau ---
+    // --- Import mit Live-Validierung ---
     await tapText('Trainingsplan importieren');
     await tester.enterText(find.byType(TextField), _demoPlanJson);
-    await tester.tap(find.text('Prüfen & übernehmen'));
     await tester.pumpAndSettle();
     FocusManager.instance.primaryFocus?.unfocus();
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 600));
-    await tester.scrollUntilVisible(
-      find.textContaining('Validierung erfolgreich'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
     await shot('02_import_vorschau');
 
-    await tapText('Plan aktivieren');
+    // "Plan übernehmen" → Vorschau-Popup bestätigen.
+    await tapText('Plan übernehmen');
+    await tester.tap(find.widgetWithText(TextButton, 'Übernehmen'));
+    await tester.pumpAndSettle();
 
     // --- Home mit aktivem Plan ---
     await shot('01_home');
