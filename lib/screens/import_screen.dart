@@ -8,8 +8,9 @@ import '../models/workout_plan.dart';
 import '../services/plan_parser.dart';
 import '../services/storage_service.dart';
 
-/// Hybrid-Import (Lastenheft 2.1): Datei-Upload UND Copy-Paste-Textfeld,
-/// jeweils mit automatischer Schema-Validierung samt Fehlerprotokoll.
+/// Hybrid-Import (Lastenheft 2.1): Datei-Upload UND Copy-Paste-Textfeld.
+/// Die Eingabe wird live validiert; ein einzelner „Plan übernehmen"-Button
+/// öffnet eine Vorschau als Popup und speichert nach Bestätigung.
 class ImportScreen extends StatefulWidget {
   const ImportScreen({super.key, required this.storage});
 
@@ -22,31 +23,47 @@ class ImportScreen extends StatefulWidget {
 class _ImportScreenState extends State<ImportScreen> {
   final TextEditingController _jsonController = TextEditingController();
 
-  /// Ziel für den Auto-Scroll zum Validierungsergebnis (Erfolg/Fehler) –
-  /// auf kleinen Displays läge es sonst unsichtbar unterhalb des Folds.
-  final GlobalKey _resultCardKey = GlobalKey();
-
   WorkoutPlan? _parsedPlan;
   List<String> _errors = const [];
-  String? _sourceLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _jsonController.addListener(_revalidate);
+  }
 
   @override
   void dispose() {
+    _jsonController.removeListener(_revalidate);
     _jsonController.dispose();
     super.dispose();
   }
 
-  void _scrollToResult() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final context = _resultCardKey.currentContext;
-      if (context != null) {
-        Scrollable.ensureVisible(
-          context,
-          duration: const Duration(milliseconds: 300),
-          alignment: 0.1,
-        );
+  /// Validiert die Eingabe automatisch bei jeder Änderung – kein
+  /// separater „Prüfen"-Schritt nötig.
+  void _revalidate() {
+    final source = _jsonController.text.trim();
+    if (source.isEmpty) {
+      if (_parsedPlan != null || _errors.isNotEmpty) {
+        setState(() {
+          _parsedPlan = null;
+          _errors = const [];
+        });
       }
-    });
+      return;
+    }
+    try {
+      final plan = PlanParser.parse(source);
+      setState(() {
+        _parsedPlan = plan;
+        _errors = const [];
+      });
+    } on PlanValidationException catch (e) {
+      setState(() {
+        _parsedPlan = null;
+        _errors = e.errors;
+      });
+    }
   }
 
   Future<void> _pickFile() async {
@@ -58,84 +75,139 @@ class _ImportScreenState extends State<ImportScreen> {
     if (result == null || result.files.isEmpty) {
       return; // Abgebrochen.
     }
-    final file = result.files.single;
-    final bytes = file.bytes;
+    final bytes = result.files.single.bytes;
     if (bytes == null) {
-      setState(() {
-        _parsedPlan = null;
-        _errors = ['Datei konnte nicht gelesen werden.'];
-        _sourceLabel = file.name;
-      });
+      _showSnack('Datei konnte nicht gelesen werden.');
       return;
     }
-    String content;
     try {
-      content = utf8.decode(bytes);
+      // Setzt den Text → löst über den Listener die Validierung aus.
+      _jsonController.text = utf8.decode(bytes);
     } on FormatException {
-      setState(() {
-        _parsedPlan = null;
-        _errors = ['Datei ist keine gültige UTF-8-Textdatei.'];
-        _sourceLabel = file.name;
-      });
-      return;
+      _showSnack('Datei ist keine gültige UTF-8-Textdatei.');
     }
-    _validate(content, sourceLabel: file.name);
   }
 
-  void _validatePastedText() {
-    _validate(_jsonController.text, sourceLabel: 'Zwischenablage');
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _validate(String source, {required String sourceLabel}) {
-    setState(() {
-      _sourceLabel = sourceLabel;
-      try {
-        _parsedPlan = PlanParser.parse(source);
-        _errors = const [];
-      } on PlanValidationException catch (e) {
-        _parsedPlan = null;
-        _errors = e.errors;
-      }
-    });
-    _scrollToResult();
+  String _exerciseLine(Exercise ex) => ex.type == ExerciseType.reps
+      ? '• ${ex.name}: ${ex.sets} × ${ex.reps} Wdh.'
+          '${ex.weightKg > 0 ? ' à ${ex.weightKg} kg' : ''}'
+      : '• ${ex.name}: ${ex.sets} × ${ex.durationSeconds} Sek.';
+
+  /// Zeigt die vollständige Fehlerliste in einem Popup.
+  void _showErrorDetails() {
+    final theme = Theme.of(context);
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Ungültiges JSON'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final error in _errors)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Text('• $error',
+                        style: theme.textTheme.bodyLarge
+                            ?.copyWith(color: theme.colorScheme.error)),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK', style: TextStyle(fontSize: 18)),
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _activatePlan() async {
+  /// Vorschau-Popup mit dem geparsten Plan; übernimmt nach Bestätigung.
+  Future<void> _confirmAndApply() async {
     final plan = _parsedPlan;
     if (plan == null) {
       return;
     }
-    // Soft-Limit (kein hartes Limit): Ab 20 Plänen nur noch mit
-    // ausdrücklicher Bestätigung, damit die Bibliothek übersichtlich bleibt.
+    // Soft-Limit-Hinweis direkt im Popup, statt als zweiter Dialog.
     final existing = await widget.storage.loadPlans();
-    if (existing.length >= StorageService.softPlanLimit) {
-      if (!mounted) {
-        return;
-      }
-      final proceed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Viele Pläne gespeichert'),
-          content: Text('Du hast bereits ${existing.length} Pläne in '
-              'deiner Bibliothek. Trotzdem speichern? Nicht mehr genutzte '
-              'Pläne kannst du auf dem Startbildschirm löschen.'),
+    final overLimit = existing.length >= StorageService.softPlanLimit;
+    if (!mounted) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          title: const Text('Plan übernehmen?'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(plan.workoutTitle, style: theme.textTheme.titleLarge),
+                const SizedBox(height: 4),
+                Text(
+                  '${plan.exercises.length} Übungen · ${plan.totalSets} Sätze',
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: theme.colorScheme.primary),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final ex in plan.exercises)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text(_exerciseLine(ex),
+                                style: theme.textTheme.bodyLarge),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (overLimit) ...[
+                  const SizedBox(height: 12),
+                  Text(
+                    'Du hast bereits ${existing.length} Pläne. Nicht mehr '
+                    'genutzte kannst du auf dem Startbildschirm löschen.',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              ],
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child:
-                  const Text('Abbrechen', style: TextStyle(fontSize: 18)),
+              child: const Text('Abbrechen', style: TextStyle(fontSize: 18)),
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Trotzdem speichern',
-                  style: TextStyle(fontSize: 18)),
+              child: const Text('Übernehmen', style: TextStyle(fontSize: 18)),
             ),
           ],
-        ),
-      );
-      if (proceed != true) {
-        return;
-      }
+        );
+      },
+    );
+    if (confirmed != true) {
+      return;
     }
     await widget.storage.addPlan(plan);
     if (!mounted) {
@@ -147,6 +219,8 @@ class _ImportScreenState extends State<ImportScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final hasInput = _jsonController.text.trim().isNotEmpty;
+    final valid = _parsedPlan != null;
     return Scaffold(
       appBar: AppBar(title: const Text('Plan importieren')),
       body: SafeArea(
@@ -159,169 +233,77 @@ class _ImportScreenState extends State<ImportScreen> {
               label: const Text('JSON-Datei auswählen'),
             ),
             const SizedBox(height: 20),
-            Card(
-              child: ExpansionTile(
-                initiallyExpanded: true,
-                title: Text(
-                  'JSON einfügen (Copy-Paste)',
-                  style: theme.textTheme.titleLarge,
-                ),
-                childrenPadding: const EdgeInsets.all(16),
-                children: [
-                  TextField(
-                    controller: _jsonController,
-                    maxLines: 10,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 15,
-                    ),
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: '{ "workout_title": "...", '
-                          '"exercises": [ ... ] }',
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: _validatePastedText,
-                    icon: const Icon(Icons.rule, size: 28),
-                    label: const Text('Prüfen & übernehmen'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            // Gemeinsamer Anker für den Auto-Scroll zum Ergebnis.
-            KeyedSubtree(
-              key: _resultCardKey,
-              child: Column(
-                children: [
-                  if (_errors.isNotEmpty) _buildErrorCard(theme),
-                  if (_parsedPlan != null) _buildPreviewCard(theme),
-                ],
-              ),
-            ),
-            _buildTemplatesHintCard(theme),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Verweis auf das offene GitHub-Repository mit fertigen
-  /// Workout-Vorlagen und der JSON-Schema-Dokumentation.
-  Widget _buildTemplatesHintCard(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Noch keinen Plan?', style: theme.textTheme.titleLarge),
+            Text('… oder JSON einfügen', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
-            Text(
-              'FlexiPlan ist Open Source. Im GitHub-Repository findest du '
-              'fertige Workout-Vorlagen zum Kopieren sowie eine Anleitung, '
-              'wie du dir eigene Pläne erstellst – selbst, von deinem Coach '
-              'oder von einer KI generiert.',
-              style: theme.textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: () => openExternalUrl(workoutTemplatesUrl),
-              icon: const Icon(Icons.open_in_new, size: 28),
-              label: const Text('Vorlagen auf GitHub'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildErrorCard(ThemeData theme) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.error_outline,
-                    color: theme.colorScheme.error, size: 28),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Fehlerprotokoll (${_sourceLabel ?? 'Eingabe'})',
-                    style: theme.textTheme.titleLarge
-                        ?.copyWith(color: theme.colorScheme.error),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            for (final error in _errors)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  '• $error',
-                  style: theme.textTheme.bodyLarge
-                      ?.copyWith(color: theme.colorScheme.error),
-                ),
+            TextField(
+              controller: _jsonController,
+              minLines: 5,
+              maxLines: 8,
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 15),
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: '{ "workout_title": "...", "exercises": [ ... ] }',
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPreviewCard(ThemeData theme) {
-    final plan = _parsedPlan!;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.check_circle_outline,
-                    color: theme.colorScheme.primary, size: 28),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Validierung erfolgreich (${_sourceLabel ?? ''})',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                ),
-              ],
             ),
-            const SizedBox(height: 12),
-            Text(plan.workoutTitle, style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 8),
-            Text(
-              '${plan.exercises.length} Übungen · ${plan.totalSets} Sätze',
-              style: theme.textTheme.titleMedium,
-            ),
-            const SizedBox(height: 16),
-            for (final ex in plan.exercises)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Text(
-                  ex.type == ExerciseType.reps
-                      ? '• ${ex.name}: ${ex.sets} × ${ex.reps} Wdh.'
-                          '${ex.weightKg > 0 ? ' à ${ex.weightKg} kg' : ''}'
-                      : '• ${ex.name}: ${ex.sets} × '
-                          '${ex.durationSeconds} Sek.',
-                  style: theme.textTheme.bodyLarge,
-                ),
-              ),
+            const SizedBox(height: 10),
+            if (hasInput) _buildStatus(theme, valid),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: _activatePlan,
-              icon: const Icon(Icons.download_done, size: 28),
-              label: const Text('Plan aktivieren'),
+              onPressed: valid ? _confirmAndApply : null,
+              icon: const Icon(Icons.check, size: 28),
+              label: const Text('Plan übernehmen'),
             ),
+            const SizedBox(height: 24),
+            Center(
+              child: TextButton.icon(
+                onPressed: () => openExternalUrl(workoutTemplatesUrl),
+                icon: const Icon(Icons.open_in_new, size: 20),
+                label: const Text('Beispiel-Vorlagen & Format auf GitHub'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Kompakte Statuszeile unter dem Textfeld (Ergebnis der Live-Prüfung).
+  Widget _buildStatus(ThemeData theme, bool valid) {
+    if (valid) {
+      final plan = _parsedPlan!;
+      return Row(
+        children: [
+          Icon(Icons.check_circle, color: theme.colorScheme.primary, size: 22),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${plan.workoutTitle} · ${plan.exercises.length} Übungen · '
+              '${plan.totalSets} Sätze',
+              style: theme.textTheme.bodyLarge
+                  ?.copyWith(color: theme.colorScheme.primary),
+            ),
+          ),
+        ],
+      );
+    }
+    return InkWell(
+      onTap: _showErrorDetails,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline,
+                color: theme.colorScheme.error, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Noch kein gültiger Plan – Details ansehen',
+                style: theme.textTheme.bodyLarge
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ),
+            Icon(Icons.chevron_right,
+                color: theme.colorScheme.error, size: 22),
           ],
         ),
       ),

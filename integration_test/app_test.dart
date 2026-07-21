@@ -154,22 +154,17 @@ void main() {
       await tester.tap(find.text('JSON-Datei auswählen'));
       await tester.pumpAndSettle();
 
-      // Die Bestätigungskarte liegt am Listenende und wird von der
-      // ListView erst beim Scrollen gebaut.
-      await _scrollUntilVisible(tester, 'Validierung erfolgreich');
-      expect(find.textContaining('Validierung erfolgreich'), findsOneWidget,
+      // Datei-Auswahl füllt das Textfeld → Live-Validierung zeigt eine
+      // Statuszeile ("… · N Übungen · M Sätze") und schaltet den Button
+      // frei. "Übungen ·" kommt nur in der Statuszeile vor (nicht im JSON).
+      expect(find.textContaining('Übungen ·'), findsOneWidget,
           reason:
               'Vcut.json aus dem Download-Ordner sollte erfolgreich validiert werden.');
-      expect(find.text('V-Cut Core Finisher'), findsOneWidget);
-      expect(find.text('Fehlerprotokoll (Vcut.json)'), findsNothing);
+      expect(_isElevatedButtonEnabled(tester, 'Plan übernehmen'), isTrue,
+          reason: '"Plan übernehmen" muss nach erfolgreicher Live-Validierung '
+              'freigeschaltet sein.');
 
-      expect(find.text('Plan aktivieren'), findsOneWidget);
-      expect(_isElevatedButtonEnabled(tester, 'Plan aktivieren'), isTrue,
-          reason:
-              '"Plan aktivieren" (Pendant zum "Start Workout"-Button) muss '
-              'nach erfolgreicher Validierung freigeschaltet sein.');
-
-      await _scrollToAndTap(tester, 'Plan aktivieren');
+      await _applyPlan(tester);
 
       expect(find.text('FlexiPlan'), findsOneWidget);
       expect(find.text('Workout starten'), findsOneWidget);
@@ -191,7 +186,7 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(find.byType(TextField), _vCutJsonContent);
-        await tester.tap(find.text('Prüfen & übernehmen'));
+        // Kein "Prüfen"-Schritt mehr: Die Eingabe wird live validiert.
         await tester.pumpAndSettle();
 
         // Tastatur schließen: Die nach enterText geöffnete IME verkleinert
@@ -202,11 +197,10 @@ void main() {
         await tester.pumpAndSettle();
         await tester.pump(const Duration(milliseconds: 600));
 
-        // Bestätigungskarte wird von der ListView erst beim Scrollen gebaut.
-        await _scrollUntilVisible(tester, 'Validierung erfolgreich');
-        expect(find.textContaining('Validierung erfolgreich'), findsOneWidget);
+        expect(find.textContaining('Übungen ·'), findsOneWidget);
+        expect(_isElevatedButtonEnabled(tester, 'Plan übernehmen'), isTrue);
 
-        await _scrollToAndTap(tester, 'Plan aktivieren');
+        await _applyPlan(tester);
 
         await _scrollToAndTap(tester, 'Workout starten');
 
@@ -309,18 +303,6 @@ bool _isElevatedButtonEnabled(WidgetTester tester, String text) {
   return button.onPressed != null;
 }
 
-/// Scrollt die äußere ListView schrittweise nach unten, bis ein Widget mit
-/// [text] gebaut und sichtbar ist. Nötig, weil ListView lazy baut: Inhalte
-/// unterhalb des Folds existieren vor dem Scrollen nicht im Widget-Baum.
-Future<void> _scrollUntilVisible(WidgetTester tester, String text) async {
-  await tester.scrollUntilVisible(
-    find.textContaining(text),
-    200,
-    scrollable: find.byType(Scrollable).first,
-  );
-  await tester.pumpAndSettle();
-}
-
 /// Scrollt das Ziel bei Bedarf in den sichtbaren Bereich und tappt es.
 /// Nötig für Buttons am Ende scrollbarer ListViews (Import-Vorschau,
 /// Summary), die auf dem Emulator-Display unterhalb des Folds liegen und
@@ -334,6 +316,16 @@ Future<void> _scrollToAndTap(WidgetTester tester, String text) async {
   );
   await tester.pumpAndSettle();
   await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+/// Übernimmt den validierten Plan: tippt „Plan übernehmen" und bestätigt
+/// das Vorschau-Popup.
+Future<void> _applyPlan(WidgetTester tester) async {
+  await _scrollToAndTap(tester, 'Plan übernehmen');
+  // Vorschau-Popup: finale Bestätigung.
+  expect(find.text('Plan übernehmen?'), findsOneWidget);
+  await tester.tap(find.widgetWithText(TextButton, 'Übernehmen'));
   await tester.pumpAndSettle();
 }
 
