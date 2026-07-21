@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/progress_analytics.dart';
 import '../services/reminder_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/sparkline.dart';
 
 /// Fortschritts-Analyse (Lastenheft 2.3): Kennzahl-Kacheln plus der
 /// Verlauf identischer Übungen über alle Sessions hinweg. Ohne
@@ -150,6 +151,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                 'Zuletzt (${_formatDate(entry.latest.date)}): '
                 '${entry.latest.label}',
                 style: theme.textTheme.bodyLarge,
+              ),
+              const SizedBox(height: 12),
+              Sparkline(
+                values: entry.values,
+                color: theme.colorScheme.primary,
               ),
             ] else
               Text(
