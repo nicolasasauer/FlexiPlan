@@ -12,10 +12,10 @@ Trainingspläne sind einfache **JSON-Dateien** – du kannst sie aus den [fertig
 - **Hybrid-Import:** JSON-Datei auswählen *oder* direkt aus der Zwischenablage einfügen – mit Schema-Validierung und klarem Fehlerprotokoll
 - **Interaktiver Workout-Modus:** sequentielles Abarbeiten von Übung zu Übung, Satz zu Satz – das Display bleibt dabei wach (Wake-Lock), und ein unterbrochenes Workout (Anruf, App-Neustart) lässt sich nahtlos fortsetzen
 - **Sprachansagen & Audio-Countdown:** jede Übung wird angesagt („Nächste Übung: Kniebeugen, 3 Sätze à 15 Wiederholungen"), Signalton und Vibration in den letzten 3 Timer-Sekunden – gemeinsam stummschaltbar
-- **Duale Timer:** Belastungs-Timer für Zeit-Übungen (vorzeitig beendbar) und Rest-Timer mit „+30 Sek." und „Pause überspringen"
+- **Duale Timer:** Belastungs-Timer für Zeit-Übungen (vorzeitig beendbar; nach Ablauf zählt eine Referenzuhr weiter, falls du länger durchhältst) und Rest-Timer mit „+30 Sek." und „Pause überspringen"
 - **Live-Tracking mit Progression:** Startwerte kommen automatisch von deiner zuletzt geschafften Leistung („Zuletzt: 12 × 5 kg"), anpassbar über große ±-Tasten; reine Eigengewichts-Übungen (`bodyweight: true`) kommen ganz ohne Gewichtseingabe aus
 - **Satz überspringen** mit Sicherheitsabfrage, in der Historie als `skipped` markiert
-- **Summary, Historie & Fortschritt:** Gesamtzeit, Sätze, Wiederholungen, bewegtes Volumen – plus Fortschritts-Analyse, die identische Übungen über Sessions hinweg vergleicht; Fehleingaben lassen sich per Wischgeste löschen
+- **Summary, Historie & Fortschritt:** Gesamtzeit, Sätze, Wiederholungen, bewegtes Volumen – plus eine Fortschritts-Ansicht mit Bestwert-Kacheln, Verlaufs-Sparkline pro Übung und einer Trainings-Heatmap samt Wochen-Streak; Fehleingaben lassen sich per Wischgeste löschen
 - **Backup:** die gesamte Historie als `flexiplan_backup.json` exportieren und auf jedem Gerät verlustfrei wieder importieren
 - **Dark-Mode-first**, große Schriften, „Hands-sweaty-optimierte" Touch-Zonen
 

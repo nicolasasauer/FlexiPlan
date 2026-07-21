@@ -9,7 +9,7 @@ const String gitHubRepoUrl = 'https://github.com/nicolasasauer/FlexiPlan';
 
 /// Angezeigte App-Version (im About-Dialog); beim Release-Bump in
 /// pubspec.yaml mitziehen.
-const String appVersion = '0.4.0';
+const String appVersion = '0.5.0';
 
 /// Ordner mit den fertigen Workout-Vorlagen im Repository.
 const String workoutTemplatesUrl = '$gitHubRepoUrl/tree/main/workouts';
