@@ -177,63 +177,75 @@ class _ProgressScreenState extends State<ProgressScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Wochentags-Labels (nur Mo/Mi/Fr/So).
-                Column(
+            // Kompaktes Raster mit gedeckelter Zellgröße (statt die volle
+            // Breite zu füllen) – bleibt nah am Mockup und lässt der
+            // Übersicht Platz.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const cellGap = 4.0;
+                const labelWidth = 28.0;
+                final available = constraints.maxWidth - labelWidth;
+                final rawCell = (available - cellGap * (weeks - 1)) / weeks;
+                final cell = rawCell.clamp(0.0, 30.0);
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final label in dayLabels)
-                      SizedBox(
-                        height: 18,
-                        child: Text(label,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant)),
+                    SizedBox(
+                      width: labelWidth,
+                      child: Column(
+                        children: [
+                          for (final label in dayLabels)
+                            SizedBox(
+                              height: cell + cellGap,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(label,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme
+                                            .colorScheme.onSurfaceVariant)),
+                              ),
+                            ),
+                        ],
                       ),
-                  ],
-                ),
-                const SizedBox(width: 6),
-                // 7 Zeilen (Tage) × 8 Spalten (Wochen).
-                Expanded(
-                  child: Column(
-                    children: [
-                      for (var row = 0; row < 7; row++)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Row(
-                            children: [
-                              for (var col = 0; col < weeks; col++)
-                                Expanded(
-                                  child: Padding(
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var row = 0; row < 7; row++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: cellGap),
+                            child: Row(
+                              children: [
+                                for (var col = 0; col < weeks; col++)
+                                  Padding(
                                     padding:
-                                        const EdgeInsets.only(right: 4),
+                                        const EdgeInsets.only(right: cellGap),
                                     child: () {
                                       final date = firstMonday.add(
                                           Duration(days: col * 7 + row));
                                       final future = date.isAfter(today);
                                       final sets = data.setsPerDay[date] ?? 0;
-                                      return AspectRatio(
-                                        aspectRatio: 1,
-                                        child: DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            color: future
-                                                ? Colors.transparent
-                                                : levelColor(levelOf(sets)),
-                                            borderRadius:
-                                                BorderRadius.circular(3),
-                                          ),
+                                      return Container(
+                                        width: cell,
+                                        height: cell,
+                                        decoration: BoxDecoration(
+                                          color: future
+                                              ? Colors.transparent
+                                              : levelColor(levelOf(sets)),
+                                          borderRadius:
+                                              BorderRadius.circular(3),
                                         ),
                                       );
                                     }(),
                                   ),
-                                ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+                      ],
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 10),
             Row(
