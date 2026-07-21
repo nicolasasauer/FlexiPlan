@@ -153,12 +153,15 @@ class _HistoryScreenState extends State<HistoryScreen> {
             onPressed: _openProgress,
           ),
           IconButton(
-            icon: const Icon(Icons.save_alt, size: 28),
+            // Export = Daten raus → Pfeil nach oben (Upload-Metapher).
+            icon: const Icon(Icons.file_upload_outlined, size: 28),
             tooltip: 'Backup exportieren',
             onPressed: _exportBackup,
           ),
           IconButton(
-            icon: const Icon(Icons.unarchive_outlined, size: 28),
+            // Import = Daten rein → Pfeil nach unten (wie „Trainingsplan
+            // importieren" auf dem Home-Screen).
+            icon: const Icon(Icons.file_download_outlined, size: 28),
             tooltip: 'Backup importieren',
             onPressed: _importBackup,
           ),
