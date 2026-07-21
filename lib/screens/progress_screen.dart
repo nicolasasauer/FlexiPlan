@@ -76,7 +76,9 @@ class _ProgressScreenState extends State<ProgressScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 _buildTiles(theme, data.tiles),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
+                _buildHeatmapCard(theme, data),
+                const SizedBox(height: 4),
                 for (final entry in data.exercises)
                   _buildExerciseCard(theme, entry),
               ],
@@ -105,6 +107,162 @@ class _ProgressScreenState extends State<ProgressScreen> {
           ],
         );
       },
+    );
+  }
+
+  /// Trainings-Heatmap der letzten 8 Wochen (Spalten) × 7 Tage (Zeilen,
+  /// Mo oben) plus Streak-Chip. Farbe = Sätze am Tag, sequentiell
+  /// (leer → 3 Grünstufen), adaptiv zum Maximum im Fenster.
+  Widget _buildHeatmapCard(ThemeData theme, ProgressData data) {
+    const weeks = 8;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Montag der aktuellen Woche, dann 7 Wochen zurück = erste Spalte.
+    final currentMonday = today.subtract(Duration(days: today.weekday - 1));
+    final firstMonday = currentMonday.subtract(const Duration(days: 7 * (weeks - 1)));
+
+    final maxSets = data.setsPerDay.values.isEmpty
+        ? 0
+        : data.setsPerDay.values.reduce((a, b) => a > b ? a : b);
+
+    // Level 0 = leer, 1..3 = zunehmender Akzent.
+    Color levelColor(int level) {
+      if (level <= 0) {
+        return theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5);
+      }
+      final primary = theme.colorScheme.primary;
+      return Color.lerp(
+        primary.withValues(alpha: 0.28),
+        primary,
+        (level.clamp(1, 3) - 1) / 2,
+      )!;
+    }
+
+    int levelOf(int sets) {
+      if (sets <= 0 || maxSets <= 0) {
+        return sets <= 0 ? 0 : 3;
+      }
+      return (3 * sets / maxSets).ceil().clamp(1, 3);
+    }
+
+    const dayLabels = ['Mo', '', 'Mi', '', 'Fr', '', 'So'];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Konstanz · 8 Wochen',
+                      style: theme.textTheme.titleLarge),
+                ),
+                if (data.weekStreak >= 2)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${data.weekStreak} Wochen dran 🔥',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Wochentags-Labels (nur Mo/Mi/Fr/So).
+                Column(
+                  children: [
+                    for (final label in dayLabels)
+                      SizedBox(
+                        height: 18,
+                        child: Text(label,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ),
+                  ],
+                ),
+                const SizedBox(width: 6),
+                // 7 Zeilen (Tage) × 8 Spalten (Wochen).
+                Expanded(
+                  child: Column(
+                    children: [
+                      for (var row = 0; row < 7; row++)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Row(
+                            children: [
+                              for (var col = 0; col < weeks; col++)
+                                Expanded(
+                                  child: Padding(
+                                    padding:
+                                        const EdgeInsets.only(right: 4),
+                                    child: () {
+                                      final date = firstMonday.add(
+                                          Duration(days: col * 7 + row));
+                                      final future = date.isAfter(today);
+                                      final sets = data.setsPerDay[date] ?? 0;
+                                      return AspectRatio(
+                                        aspectRatio: 1,
+                                        child: DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: future
+                                                ? Colors.transparent
+                                                : levelColor(levelOf(sets)),
+                                            borderRadius:
+                                                BorderRadius.circular(3),
+                                          ),
+                                        ),
+                                      );
+                                    }(),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text('wenig',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant)),
+                const SizedBox(width: 6),
+                for (final level in [0, 1, 2, 3])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 3),
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: levelColor(level),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 3),
+                Text('viele Sätze',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
