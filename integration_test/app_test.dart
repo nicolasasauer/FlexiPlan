@@ -269,7 +269,9 @@ void main() {
         final plank = session.completedExercises
             .firstWhere((e) => e.exerciseName == 'Spiderman-Plank');
         expect(plank.setsLogged[0].durationActualSeconds, 60,
-            reason: 'Satz 1 der Plank lief komplett durch (60 Sek.).');
+            reason: 'Satz 1 der Plank lief komplett durch: Der Eingabewert '
+                'bleibt bei der Vorgabe (60 Sek.) stehen; nur die '
+                'Referenzuhr zählt daneben weiter.');
 
         // Sichtprüfung der auf dem Summary-Screen angezeigten Werte.
         expect(find.text('30.0 kg'), findsOneWidget);
