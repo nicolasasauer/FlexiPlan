@@ -9,6 +9,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/progression_rule.dart';
 import '../models/stored_plan.dart';
 import '../models/workout_plan.dart';
 import '../models/workout_session.dart';
@@ -41,6 +42,41 @@ class StorageService {
   Future<void> saveSoundEnabled(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_soundKey, enabled);
+  }
+
+  static const String _progressionKey = 'flexiplan_progression';
+
+  /// Auto-Steigerungs-Regeln je Übungsname (Progression V2). Übungen ohne
+  /// Eintrag haben keine aktive Regel (Default aus).
+  Future<Map<String, ProgressionRule>> loadProgressionRules() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_progressionKey);
+    if (raw == null) {
+      return {};
+    }
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return map.map((key, value) => MapEntry(
+          key, ProgressionRule.fromJson(value as Map<String, dynamic>)));
+    } on Object {
+      return {};
+    }
+  }
+
+  /// Setzt oder entfernt die Regel einer Übung (aus = Eintrag löschen).
+  Future<void> saveProgressionRule(
+      String exerciseName, ProgressionRule rule) async {
+    final prefs = await SharedPreferences.getInstance();
+    final rules = await loadProgressionRules();
+    if (rule.isActive) {
+      rules[exerciseName] = rule;
+    } else {
+      rules.remove(exerciseName);
+    }
+    await prefs.setString(
+        _progressionKey,
+        jsonEncode(
+            rules.map((key, value) => MapEntry(key, value.toJson()))));
   }
 
   // ---------------------------------------------------------------------

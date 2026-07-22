@@ -119,6 +119,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final lastPerformances = await widget.storage.loadLastPerformances(
       plan.exercises.map((e) => e.name).toSet(),
     );
+    final progressionRules = await widget.storage.loadProgressionRules();
     if (!mounted) {
       return;
     }
@@ -128,6 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
           plan: plan,
           storage: widget.storage,
           lastPerformances: lastPerformances,
+          progressionRules: progressionRules,
           resumeDraft: draft,
         ),
       ),
@@ -151,11 +153,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (selected == null) {
       return;
     }
-    // Progression V1: letzte Leistungen vor dem Start laden, damit die
-    // Startwerte ab dem ersten Satz stimmen.
+    // Progression V1/V2: letzte Leistungen und Steigerungs-Regeln vor dem
+    // Start laden, damit die Startwerte ab dem ersten Satz stimmen.
     final lastPerformances = await widget.storage.loadLastPerformances(
       selected.plan.exercises.map((e) => e.name).toSet(),
     );
+    final progressionRules = await widget.storage.loadProgressionRules();
     if (!mounted) {
       return;
     }
@@ -165,6 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
           plan: selected.plan,
           storage: widget.storage,
           lastPerformances: lastPerformances,
+          progressionRules: progressionRules,
         ),
       ),
     );

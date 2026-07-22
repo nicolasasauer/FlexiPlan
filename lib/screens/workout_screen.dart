@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../models/progression_rule.dart';
 import '../models/workout_plan.dart';
 import '../models/workout_session.dart';
 import '../services/native_feedback.dart';
@@ -23,6 +24,7 @@ class WorkoutScreen extends StatefulWidget {
     required this.plan,
     required this.storage,
     this.lastPerformances = const {},
+    this.progressionRules = const {},
     this.resumeDraft,
   });
 
@@ -33,6 +35,9 @@ class WorkoutScreen extends StatefulWidget {
   /// Startwert-Vorschlag und "Zuletzt:"-Anzeige. Wird vom Aufrufer vor
   /// dem Start geladen, damit die Werte ab dem ersten Frame stimmen.
   final Map<String, ({SetLog log, DateTime date})> lastPerformances;
+
+  /// Auto-Steigerungs-Regeln je Übungsname (Progression V2, opt-in).
+  final Map<String, ProgressionRule> progressionRules;
 
   /// Zwischenstand eines unterbrochenen Workouts (App-Kill-Schutz);
   /// null = normaler Neustart des Workouts.
@@ -46,6 +51,15 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
   late final DateTime _startTime;
   late final List<List<SetLog>> _logs;
   final SpeechService _speech = SpeechService();
+
+  /// Mutable Kopie der Progressions-Regeln – kann im Workout per Zahnrad
+  /// geändert werden.
+  late final Map<String, ProgressionRule> _rules =
+      Map.of(widget.progressionRules);
+
+  /// true, wenn der aktuelle Startwert durch Progression über die letzte
+  /// Leistung gehoben wurde (steuert die „↗"-Anzeige).
+  bool _currentBumped = false;
 
   /// Gemeinsamer Schalter für Töne, Haptik und Ansagen (persistiert).
   bool _soundEnabled = true;
@@ -216,21 +230,94 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
 
   void _setupCurrentSet() {
     final ex = _exercise;
-    final last = _lastPerformance;
-    // Progression V1: Die zuletzt geschaffte Leistung ist der neue
-    // Startwert-Vorschlag; ohne Historie gilt die Plan-Vorgabe. Die
+    // Progression V1 (letzte Leistung als Startwert) + optional V2
+    // (Auto-Steigerung); ohne Historie gilt die Plan-Vorgabe. Die
     // Timer-Dauer zeitbasierter Übungen bleibt bewusst die Plan-Vorgabe
     // (ein früher abgebrochener Satz soll das Ziel nicht senken).
-    if (ex.type == ExerciseType.reps && last != null) {
-      _repsValue = last.log.repsActual > 0 ? last.log.repsActual : ex.reps;
-      _weightValue = ex.bodyweight ? 0 : last.log.weightActualKg;
+    if (ex.type == ExerciseType.reps) {
+      final last = _lastPerformance;
+      final suggestion = suggestStart(
+        rule: _rules[ex.name] ?? ProgressionRule.none,
+        bodyweight: ex.bodyweight,
+        planReps: ex.reps,
+        planWeight: ex.weightKg,
+        lastReps: last?.log.repsActual,
+        lastWeight: last?.log.weightActualKg,
+      );
+      _repsValue = suggestion.reps;
+      _weightValue = suggestion.weightKg;
+      _currentBumped = suggestion.bumped;
     } else {
-      _repsValue = ex.type == ExerciseType.reps ? ex.reps : 0;
-      _weightValue = ex.bodyweight ? 0 : ex.weightKg;
+      _repsValue = 0;
+      _weightValue = 0;
+      _currentBumped = false;
     }
     _durationValue = ex.type == ExerciseType.time ? ex.durationSeconds : 0;
     _phase =
         ex.type == ExerciseType.time ? _Phase.ready : _Phase.logging;
+  }
+
+  /// Öffnet die Auto-Steigerungs-Einstellung für die aktuelle Übung.
+  Future<void> _editProgression() async {
+    final ex = _exercise;
+    final current = _rules[ex.name] ?? ProgressionRule.none;
+    final options = <ProgressionRule>[
+      ProgressionRule.none,
+      if (!ex.bodyweight)
+        const ProgressionRule(type: ProgressionType.weight, step: 2.5),
+      if (!ex.bodyweight)
+        const ProgressionRule(type: ProgressionType.weight, step: 5),
+      const ProgressionRule(type: ProgressionType.reps, step: 1),
+      const ProgressionRule(type: ProgressionType.reps, step: 2),
+    ];
+    final theme = Theme.of(context);
+    final chosen = await showDialog<ProgressionRule>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: Text('Progression: ${ex.name}'),
+        children: [
+          for (final option in options)
+            ListTile(
+              leading: Icon(
+                option == current
+                    ? Icons.radio_button_checked
+                    : Icons.radio_button_unchecked,
+                color: option == current
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurfaceVariant,
+              ),
+              title: Text(option.label, style: const TextStyle(fontSize: 18)),
+              onTap: () => Navigator.of(context).pop(option),
+            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+            child: Text(
+              'Schlägt beim nächsten Mal etwas mehr vor als zuletzt '
+              'geschafft. Standard ist aus – der Wert bleibt jederzeit '
+              'manuell anpassbar.',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (chosen == null) {
+      return;
+    }
+    await widget.storage.saveProgressionRule(ex.name, chosen);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      if (chosen.isActive) {
+        _rules[ex.name] = chosen;
+      } else {
+        _rules.remove(ex.name);
+      }
+      // Startwert der laufenden Übung sofort neu berechnen.
+      _setupCurrentSet();
+    });
   }
 
   // -----------------------------------------------------------------
@@ -493,6 +580,13 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             'Satz $_setNumber/${ex.sets}',
           ),
           actions: [
+            // Auto-Steigerung nur für Wiederholungs-Übungen sinnvoll.
+            if (ex.type == ExerciseType.reps)
+              IconButton(
+                icon: const Icon(Icons.tune, size: 28),
+                tooltip: 'Auto-Steigerung für diese Übung',
+                onPressed: _editProgression,
+              ),
             IconButton(
               icon: Icon(
                 _soundEnabled ? Icons.volume_up : Icons.volume_off,
@@ -563,6 +657,24 @@ class _WorkoutScreenState extends State<WorkoutScreen> {
             _formatLastPerformance(last),
             style: theme.textTheme.titleMedium
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+        // Progression V2: transparenter Hinweis, wenn der Startwert über
+        // die letzte Leistung angehoben wurde.
+        if (_currentBumped) ...[
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.trending_up,
+                  size: 20, color: theme.colorScheme.primary),
+              const SizedBox(width: 6),
+              Text(
+                'Auto-Steigerung: '
+                '${(_rules[ex.name] ?? ProgressionRule.none).shortLabel}',
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(color: theme.colorScheme.primary),
+              ),
+            ],
           ),
         ],
       ],
