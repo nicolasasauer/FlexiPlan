@@ -14,9 +14,16 @@ import 'plan_editor_dialog.dart';
 /// Die Eingabe wird live validiert; ein einzelner „Plan übernehmen"-Button
 /// öffnet eine Vorschau als Popup und speichert nach Bestätigung.
 class ImportScreen extends StatefulWidget {
-  const ImportScreen({super.key, required this.storage});
+  const ImportScreen({
+    super.key,
+    required this.storage,
+    this.templateRepository = const TemplateRepository(),
+  });
 
   final StorageService storage;
+
+  /// Austauschbar für Tests (z. B. mit einem gemockten http.Client).
+  final TemplateRepository templateRepository;
 
   @override
   State<ImportScreen> createState() => _ImportScreenState();
@@ -24,7 +31,6 @@ class ImportScreen extends StatefulWidget {
 
 class _ImportScreenState extends State<ImportScreen> {
   final TextEditingController _jsonController = TextEditingController();
-  final TemplateRepository _templateRepo = const TemplateRepository();
 
   WorkoutPlan? _parsedPlan;
   List<String> _errors = const [];
@@ -95,17 +101,17 @@ class _ImportScreenState extends State<ImportScreen> {
   /// (Liste wird live abgerufen, nichts ist in der App gebündelt) und
   /// lädt den Inhalt der gewählten Datei ins Textfeld.
   Future<void> _pickTemplate() async {
-    final future = _templateRepo.listTemplates();
     final template = await showModalBottomSheet<WorkoutTemplateRef>(
       context: context,
       isScrollControlled: true,
-      builder: (context) => _TemplatePickerSheet(templatesFuture: future),
+      builder: (context) =>
+          _TemplatePickerSheet(repository: widget.templateRepository),
     );
     if (template == null || !mounted) {
       return;
     }
     try {
-      final content = await _templateRepo.fetchContent(template);
+      final content = await widget.templateRepository.fetchContent(template);
       _jsonController.text = content;
     } on Object {
       if (mounted) {
@@ -367,12 +373,23 @@ class _ImportScreenState extends State<ImportScreen> {
   }
 }
 
-/// Bottom-Sheet-Liste der Beispiel-Vorlagen; ruft die übergebene, bereits
-/// gestartete Zukunft ab statt selbst einen State zu verwalten.
-class _TemplatePickerSheet extends StatelessWidget {
-  const _TemplatePickerSheet({required this.templatesFuture});
+/// Bottom-Sheet-Liste der Beispiel-Vorlagen. Startet den Abruf selbst in
+/// [initState] statt eine von außen übergebene Future zu verwenden – so
+/// entsteht keine Lücke zwischen Future-Erzeugung und FutureBuilder-
+/// Subscription (sonst könnte ein schnell fehlschlagender Request als
+/// unbehandelter Fehler auffallen, bevor das Sheet überhaupt aufgebaut ist).
+class _TemplatePickerSheet extends StatefulWidget {
+  const _TemplatePickerSheet({required this.repository});
 
-  final Future<List<WorkoutTemplateRef>> templatesFuture;
+  final TemplateRepository repository;
+
+  @override
+  State<_TemplatePickerSheet> createState() => _TemplatePickerSheetState();
+}
+
+class _TemplatePickerSheetState extends State<_TemplatePickerSheet> {
+  late final Future<List<WorkoutTemplateRef>> _templatesFuture =
+      widget.repository.listTemplates();
 
   @override
   Widget build(BuildContext context) {
@@ -381,7 +398,7 @@ class _TemplatePickerSheet extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: FutureBuilder<List<WorkoutTemplateRef>>(
-          future: templatesFuture,
+          future: _templatesFuture,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
               return const SizedBox(
