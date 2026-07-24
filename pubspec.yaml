@@ -21,6 +21,7 @@ dependencies:
   # "Symbol nicht gefunden: FilePickerPlugin"). 10.x wendet das klassische
   # Kotlin-Gradle-Plugin an und baut mit dem Flutter-3.44-Template.
   file_picker: ^10.0.0
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

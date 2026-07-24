@@ -7,6 +7,8 @@ import '../app_links.dart';
 import '../models/workout_plan.dart';
 import '../services/plan_parser.dart';
 import '../services/storage_service.dart';
+import '../services/template_repository.dart';
+import 'plan_editor_dialog.dart';
 
 /// Hybrid-Import (Lastenheft 2.1): Datei-Upload UND Copy-Paste-Textfeld.
 /// Die Eingabe wird live validiert; ein einzelner „Plan übernehmen"-Button
@@ -22,6 +24,7 @@ class ImportScreen extends StatefulWidget {
 
 class _ImportScreenState extends State<ImportScreen> {
   final TextEditingController _jsonController = TextEditingController();
+  final TemplateRepository _templateRepo = const TemplateRepository();
 
   WorkoutPlan? _parsedPlan;
   List<String> _errors = const [];
@@ -88,9 +91,50 @@ class _ImportScreenState extends State<ImportScreen> {
     }
   }
 
+  /// Zeigt ein Popup mit den Beispiel-Vorlagen aus dem GitHub-Repository
+  /// (Liste wird live abgerufen, nichts ist in der App gebündelt) und
+  /// lädt den Inhalt der gewählten Datei ins Textfeld.
+  Future<void> _pickTemplate() async {
+    final future = _templateRepo.listTemplates();
+    final template = await showModalBottomSheet<WorkoutTemplateRef>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _TemplatePickerSheet(templatesFuture: future),
+    );
+    if (template == null || !mounted) {
+      return;
+    }
+    try {
+      final content = await _templateRepo.fetchContent(template);
+      _jsonController.text = content;
+    } on Object {
+      if (mounted) {
+        _showSnack(
+            'Vorlage konnte nicht geladen werden. Internetverbindung prüfen.');
+      }
+    }
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Öffnet die Bearbeiten-Maske für den bereits geparsten Plan und
+  /// schreibt das Ergebnis als formatiertes JSON zurück ins Textfeld –
+  /// die bestehende Live-Validierung übernimmt den Rest.
+  Future<void> _editPlan() async {
+    final plan = _parsedPlan;
+    if (plan == null) {
+      return;
+    }
+    FocusScope.of(context).unfocus();
+    final edited = await showPlanEditorDialog(context, plan);
+    if (edited == null) {
+      return;
+    }
+    _jsonController.text =
+        const JsonEncoder.withIndent('  ').convert(edited.toJson());
   }
 
   String _exerciseLine(Exercise ex) => ex.type == ExerciseType.reps
@@ -232,6 +276,12 @@ class _ImportScreenState extends State<ImportScreen> {
               icon: const Icon(Icons.folder_open, size: 28),
               label: const Text('JSON-Datei auswählen'),
             ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _pickTemplate,
+              icon: const Icon(Icons.auto_awesome, size: 28),
+              label: const Text('Beispiel-Workout laden'),
+            ),
             const SizedBox(height: 20),
             Text('… oder JSON einfügen', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
@@ -283,6 +333,12 @@ class _ImportScreenState extends State<ImportScreen> {
                   ?.copyWith(color: theme.colorScheme.primary),
             ),
           ),
+          IconButton(
+            onPressed: _editPlan,
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Übungen bearbeiten',
+            color: theme.colorScheme.primary,
+          ),
         ],
       );
     }
@@ -305,6 +361,84 @@ class _ImportScreenState extends State<ImportScreen> {
             Icon(Icons.chevron_right,
                 color: theme.colorScheme.error, size: 22),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Bottom-Sheet-Liste der Beispiel-Vorlagen; ruft die übergebene, bereits
+/// gestartete Zukunft ab statt selbst einen State zu verwalten.
+class _TemplatePickerSheet extends StatelessWidget {
+  const _TemplatePickerSheet({required this.templatesFuture});
+
+  final Future<List<WorkoutTemplateRef>> templatesFuture;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: FutureBuilder<List<WorkoutTemplateRef>>(
+          future: templatesFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const SizedBox(
+                height: 140,
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+            if (snapshot.hasError) {
+              return SizedBox(
+                height: 140,
+                child: Center(
+                  child: Text(
+                    'Vorlagen konnten nicht geladen werden.\n'
+                    'Internetverbindung prüfen.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge
+                        ?.copyWith(color: theme.colorScheme.error),
+                  ),
+                ),
+              );
+            }
+            final templates = snapshot.data!;
+            return ConstrainedBox(
+              constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.6),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Beispiel-Workout laden',
+                      style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Direkt aus dem FlexiPlan-Repository auf GitHub.',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: templates.length,
+                      itemBuilder: (context, i) {
+                        final t = templates[i];
+                        return ListTile(
+                          leading: const Icon(Icons.fitness_center),
+                          title: Text(t.displayName,
+                              style: const TextStyle(fontSize: 18)),
+                          onTap: () => Navigator.of(context).pop(t),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
