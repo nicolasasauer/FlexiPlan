@@ -4,6 +4,10 @@
          einem Neustart wiederherstellen. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Beispiel-Workouts: Liste + Inhalte werden zur Laufzeit aus dem
+         öffentlichen GitHub-Repository geladen (kein Tracking, keine
+         eigenen Server). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="FlexiPlan"
         android:name="${applicationName}"
